@@ -348,7 +348,6 @@ const handleAddProduct = async () => {
         category: '',
         location: '',                                                                                           
       }
-
       Swal.fire({
         position: "center",
         icon: "success",
