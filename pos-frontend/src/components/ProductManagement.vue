@@ -241,7 +241,7 @@ const filteredProducts = computed(() => {
     return result
 })
 
-// Function to calculate the variation amount for each product
+
 const calculateVariationAmount = (product) => {
     if (!product.variations || product.variations.length === 0) return 0;
     return product.variations.reduce((total, variation) => {
