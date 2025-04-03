@@ -376,7 +376,6 @@ const handleAddProduct = async () => {
     } else if (error.message) {
         errorMessage = error.message
     }
-
     console.error('Error adding product:', error)
     
     Swal.fire({
