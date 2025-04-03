@@ -918,11 +918,11 @@ const newVariation = ref({
     color: '',
     size: '',
     barcode: '',
-    addAmount: '',
     price: '',
     selling_price: '',
-    discount: '',
-    quantity: ''
+    discount: '0',
+    quantity: '',
+    status: 'In Stock'
 })
 
 const openAddVariationModal = (productId) => {
@@ -931,11 +931,11 @@ const openAddVariationModal = (productId) => {
         color: '',
         size: '',
         barcode: '',
-        addAmount: '',
         price: '',
         selling_price: '',
-        discount: '',
-        quantity: ''
+        discount: '0',
+        quantity: '',
+        status: 'In Stock'
     }
     showVariationModal.value = true
 }
@@ -1033,12 +1033,11 @@ const editingVariation = ref({
     color: '',
     size: '',
     barcode: '',
-    addAmount: '',
     price: '',
     selling_price: '',
     discount: '',
     quantity: '',
-    status: '', // Add 'status' field
+    status: '',
 });
 
 const openEditVariationModal = (variation) => {
@@ -1047,11 +1046,10 @@ const openEditVariationModal = (variation) => {
         color: variation.color,
         size: variation.size,
         barcode: variation.barcode,
-        addAmount: variation.addAmount || '',
         price: variation.price,
-        selling_price: variation.selling_price || variation.sellingPrice,
+        selling_price: variation.selling_price,
         discount: variation.discount,
-        quantity: variation.quantity || variation.qty,
+        quantity: variation.quantity,
         status: variation.status || '', // Include 'status' field
     };
     showEditVariationModal.value = true;
@@ -1077,6 +1075,7 @@ const handleEditVariation = async () => {
     }
 
     try {
+        // Ensure we're using the field names expected by the backend
         const payload = {
             color: editingVariation.value.color,
             size: editingVariation.value.size,
@@ -1085,7 +1084,7 @@ const handleEditVariation = async () => {
             selling_price: parseFloat(editingVariation.value.selling_price),
             discount: parseFloat(editingVariation.value.discount || 0),
             quantity: parseInt(editingVariation.value.quantity),
-            status: editingVariation.value.status || 'In Stock', // Include 'status' in the payload
+            status: editingVariation.value.status || 'In Stock',
         };
 
         // Log the payload for debugging
@@ -2443,10 +2442,11 @@ onUnmounted(() => {
                             <p class="text-sm text-gray-300"><strong>Color:</strong> {{ variation.color }}</p>
                             <p class="text-sm text-gray-300"><strong>Size:</strong> {{ variation.size }}</p>
                             <p class="text-sm text-gray-300"><strong>Barcode:</strong> {{ variation.barcode }}</p>
-                            <p class="text-sm text-gray-300"><strong>Quantity:</strong> {{ variation.quantity || 'N/A' }}</p>
+                            <p class="text-sm text-gray-300"><strong>Quantity:</strong> {{ variation.quantity }}</p>
                             <p class="text-sm text-gray-300"><strong>Price:</strong> ${{ Number(variation.price || 0).toFixed(2) }}</p>
-                            <p class="text-sm text-gray-300"><strong>Selling Price:</strong> ${{ Number(variation.sellingPrice || 0).toFixed(2) }}</p>
+                            <p class="text-sm text-gray-300"><strong>Selling Price:</strong> ${{ Number(variation.selling_price || 0).toFixed(2) }}</p>
                             <p class="text-sm text-gray-300"><strong>Discount:</strong> {{ Number(variation.discount || 0).toFixed(2) }}%</p>
+                            <p class="text-sm text-gray-300"><strong>Status:</strong> {{ variation.status || 'In Stock' }}</p>
                         </div>
                         <div class="flex space-x-2">
                             <button 
@@ -2538,7 +2538,7 @@ onUnmounted(() => {
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Selling Price</label>
                         <input 
-                            v-model="editingVariation.sellingPrice" 
+                            v-model="editingVariation.selling_price" 
                             type="number"
                             step="0.01"
                             class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
@@ -2558,7 +2558,7 @@ onUnmounted(() => {
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Quantity</label>
                         <input 
-                            v-model="editingVariation.qty" 
+                            v-model="editingVariation.quantity" 
                             type="number"
                             min="0"
                             class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
