@@ -33,7 +33,6 @@ const isSidebarVisible = ref(false)
 const toggleSidebar = (visible) => {
     isSidebarVisible.value = visible
 }
-
 const showModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteModal = ref(false)
