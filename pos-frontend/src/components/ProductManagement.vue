@@ -53,7 +53,7 @@ const showMultiStepModal = ref(false)
 const currentStep = ref(1)
 const totalSteps = 2
 
-// Product and variation data for multi-step form
+
 const newProductData = reactive({
     name: '',
     description: '',
