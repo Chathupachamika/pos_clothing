@@ -168,7 +168,6 @@ const products = ref([])
 const isLoading = ref(true)
 const isAddingProduct = ref(false)
 const isUpdatingProduct = ref(false)
-
 const fetchProducts = async () => {
     isLoading.value = true
     try {
