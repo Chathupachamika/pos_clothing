@@ -1268,23 +1268,14 @@ onUnmounted(() => {
                             <tbody class="divide-y divide-gray-700/50">
                                 <tr v-if="isLoading" class="hover:bg-gray-700">
                                     <td colspan="9" class="h-[400px] relative">
-                                        <div class="absolute inset-0 flex flex-col items-center justify-center space-y-4">
-                                            <div class="loader-container">
+                                        <div class="absolute inset-0 flex items-center justify-center">
+                                            <div class="flex flex-col items-center">
                                                 <div class="loader">
-                                                    <svg class="circular" viewBox="25 25 50 50">
-                                                        <defs>
-                                                            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%">
-                                                                <stop offset="0%" stop-color="#3b82f6" />
-                                                                <stop offset="50%" stop-color="#8b5cf6" />
-                                                                <stop offset="100%" stop-color="#ec4899" />
-                                                            </linearGradient>
-                                                        </defs>
-                                                        <circle class="path" cx="50" cy="50" r="20" fill="none" stroke="url(#gradient)" stroke-width="3" stroke-miterlimit="10"/>
-                                                    </svg>
+                                                    <div class="loader-inner"></div>
                                                 </div>
-                                            </div>
-                                            <div class="text-base font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse">
-                                                Loading products...
+                                                <div class="mt-4 text-base font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse">
+                                                    Loading products...
+                                                </div>
                                             </div>
                                         </div>
                                     </td>
@@ -2290,82 +2281,114 @@ onUnmounted(() => {
                 </div>
 
                 <form @submit.prevent="handleAddVariation" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Color</label>
-                        <input 
-                            v-model="newVariation.color" 
-                            type="text"
-                            class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
-                            required
-                        >
+                    <div class="bg-gray-750 p-4 rounded-lg">
+                        <h3 class="text-sm font-medium text-gray-300 uppercase tracking-wider mb-3">Variation Details</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Color</label>
+                                <input 
+                                    v-model="newVariation.color" 
+                                    type="text"
+                                    placeholder="Enter color"
+                                    class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
+                                    required
+                                >
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Size</label>
+                                <input 
+                                    v-model="newVariation.size" 
+                                    type="text"
+                                    placeholder="Enter size"
+                                    class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
+                                    required
+                                >
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Barcode</label>
+                                <input 
+                                    v-model="newVariation.barcode" 
+                                    type="text"
+                                    placeholder="Enter barcode"
+                                    class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
+                                    required
+                                >
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Size</label>
-                        <input 
-                            v-model="newVariation.size" 
-                            type="text"
-                            class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
-                            required
-                        >
+
+                    <div class="bg-gray-750 p-4 rounded-lg">
+                        <h3 class="text-sm font-medium text-gray-300 uppercase tracking-wider mb-3">Price Information</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Price</label>
+                                <input 
+                                    v-model="newVariation.price" 
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
+                                    required
+                                >
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Selling Price</label>
+                                <input 
+                                    v-model="newVariation.selling_price" 
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
+                                    required
+                                >
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Discount (%)</label>
+                                <input 
+                                    v-model="newVariation.discount" 
+                                    type="number"
+                                    step="0.01"
+                                    placeholder="0"
+                                    class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
+                                >
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Barcode</label>
-                        <input 
-                            v-model="newVariation.barcode" 
-                            type="text"
-                            class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
-                            required
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Add Amount</label>
-                        <input 
-                            v-model="newVariation.addAmount" 
-                            type="number"
-                            min="0"
-                            class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
-                            required
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Price</label>
-                        <input 
-                            v-model="newVariation.price" 
-                            type="number"
-                            step="0.01"
-                            class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
-                            required
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Selling Price</label>
-                        <input 
-                            v-model="newVariation.sellingPrice" 
-                            type="number"
-                            step="0.01"
-                            class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
-                            required
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Discount (%)</label>
-                        <input 
-                            v-model="newVariation.discount" 
-                            type="number"
-                            step="0.01"
-                            class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
-                            required
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-1">Quantity</label>
-                        <input 
-                            v-model="newVariation.qty" 
-                            type="number"
-                            min="0"
-                            class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
-                            required
-                        >
+
+                    <div class="bg-gray-750 p-4 rounded-lg">
+                        <h3 class="text-sm font-medium text-gray-300 uppercase tracking-wider mb-3">Stock Information</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Quantity</label>
+                                <input 
+                                    v-model="newVariation.quantity" 
+                                    type="number"
+                                    min="0"
+                                    placeholder="0"
+                                    class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
+                                    required
+                                >
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-300 mb-1">Status</label>
+                                <select 
+                                    v-model="newVariation.status"
+                                    class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
+                                >
+                                    <option value="In Stock">In Stock</option>
+                                    <option value="Low Stock">Low Stock</option>
+                                    <option value="Out of Stock">Out of Stock</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-700">
@@ -2406,12 +2429,8 @@ onUnmounted(() => {
                 </div>
 
                 <div v-if="isLoadingVariations" class="flex justify-center items-center h-40">
-                    <div class="loader-container">
-                        <div class="loader">
-                            <svg class="circular" viewBox="25 25 50 50">
-                                <circle class="path" cx="50" cy="50" r="20" fill="none" stroke-width="3" stroke-miterlimit="10" />
-                            </svg>
-                        </div>
+                    <div class="loader">
+                        <div class="loader-inner"></div>
                     </div>
                 </div>
                 <div v-else-if="variations.length > 0" class="space-y-4">
@@ -2640,53 +2659,23 @@ tbody tr:last-child td {
     background: rgba(107, 114, 128, 0.5);
 }
 
-.loader-container {
-    position: relative;
-    width: 100px;
-    height: 100px;
-}
-
 .loader {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 70px;
-    height: 70px;
+    width: 50px;
+    height: 50px;
+    border: 5px solid #2563eb;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
 }
 
-.circular {
-    animation: rotate 2s linear infinite;
-    height: 100%;
-    width: 100%;
-    transform-origin: center center;
-}
-
-.path {
-    stroke-dasharray: 89, 200;
-    stroke-dashoffset: 0;
-    stroke-linecap: round;
-    animation: dash 1.5s ease-in-out infinite;
-}
-
-@keyframes rotate {
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
+    }
     100% {
         transform: rotate(360deg);
-    }
-}
-
-@keyframes dash {
-    0% {
-        stroke-dasharray: 1, 200;
-        stroke-dashoffset: 0;
-    }
-    50% {
-        stroke-dasharray: 89, 200;
-        stroke-dashoffset: -35;
-    }
-    100% {
-        stroke-dasharray: 89, 200;
-        stroke-dashoffset: -124;
     }
 }
 </style>

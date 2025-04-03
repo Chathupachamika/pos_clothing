@@ -208,19 +208,19 @@ const productVariations = computed(() => props.productData?.variations || [])
             <div class="space-y-3">
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Supplier ID:</span>
-                <span class="font-semibold text-gray-800">{{ productData.supplier_id }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierInfo.id }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Company Name:</span>
-                <span class="font-semibold text-gray-800">{{ supplierDetails.name || 'N/A' }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierInfo.name }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Email Address:</span>
-                <span class="font-semibold text-gray-800">{{ supplierDetails.email || 'N/A' }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierInfo.email }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Contact Number:</span>
-                <span class="font-semibold text-gray-800">{{ supplierDetails.contact || 'N/A' }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierInfo.contact }}</span>
               </div>
               <div class="flex">
                 <span class="font-medium w-40 text-gray-500">Supplier Rating:</span>
