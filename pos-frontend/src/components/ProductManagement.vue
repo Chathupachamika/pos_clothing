@@ -189,7 +189,7 @@ const fetchProducts = async () => {
             created_at: product.created_at,
             updated_at: product.updated_at,
             image_url: product.image_url,
-            variations: product.variations || [] // Ensure variations are included
+            variations: product.variations || [] 
         }))
         
         if (response.data.meta) {
