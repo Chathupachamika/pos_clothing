@@ -48,7 +48,7 @@ const handleShowGRN = (product) => {
    selectedProduct.value = product;
    showGRNModal.value = true;
 };
-// Multi-step modal state
+
 const showMultiStepModal = ref(false)
 const currentStep = ref(1)
 const totalSteps = 2
