@@ -41,7 +41,13 @@ const showViewModal = ref(false)
 const showGRN = ref(false)
 const grnProduct = ref(null)
 const grnNumber = ref('')
-
+const showGRNModal = ref(false);
+const selectedProduct = ref(null);
+ 
+const handleShowGRN = (product) => {
+   selectedProduct.value = product;
+   showGRNModal.value = true;
+};
 // Multi-step modal state
 const showMultiStepModal = ref(false)
 const currentStep = ref(1)
@@ -1146,11 +1152,22 @@ const handleDeleteVariation = async (variationId) => {
 const openGRNDocument = async (product) => {
     try {
         const response = await connection.get(`/product/variations/product/${product.id}`);
-        grnProduct.value = {
-            ...product,
-            variations: response.data.data,
-            supplierDetails: product.supplierDetails || {}
+        // First set up dummy supplier info if none exists
+        const supplierInfo = {
+            id: product.supplier_id,
+            name: 'Supplier',
+            email: 'supplier@example.com', 
+            contact: 'N/A',
+            rating: 5
         };
+        
+        const grnProductData = {
+            ...product,
+            variations: response.data.data || [],
+            supplierDetails: supplierInfo,
+        };
+        
+        grnProduct.value = grnProductData;
         grnNumber.value = `GRN-${product.id}-${new Date().getFullYear()}`;
         showGRN.value = true;
     } catch (error) {
@@ -2180,11 +2197,19 @@ onUnmounted(() => {
             </div>
         </div>
         <GRNDocument 
-            v-if="showGRN"
-            :productData="grnProduct"
-            :grnNumber="grnNumber"
+     v-if="showGRNModal" 
+     :productData="selectedProduct" 
+     :grnNumber="`GRN-${selectedProduct?.id}`" 
+     :showModal="showGRNModal" 
+     @close="showGRNModal = false" 
+   />
+        <GRNDocument 
+            v-if="showGRN" 
+            :productData="grnProduct" 
+            :grnNumber="grnNumber" 
             :showModal="showGRN"
-            @close="showGRN = false"
+            :supplierInfo="grnProduct?.supplierDetails || {}"
+            @close="showGRN = false" 
         />
 
         <div v-if="showImageUploadModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">

@@ -17,6 +17,17 @@ const props = defineProps({
   showModal: {
     type: Boolean,
     required: true
+  },
+  supplierInfo: {
+    type: Object,
+    required: false,
+    default: () => ({
+      id: '',
+      name: '',
+      email: '',
+      contact: '',
+      rating: 5
+    })
   }
 })
 
@@ -225,7 +236,7 @@ const productVariations = computed(() => props.productData?.variations || [])
               <div class="flex">
                 <span class="font-medium w-40 text-gray-500">Supplier Rating:</span>
                 <div class="flex">
-                  <span v-for="i in 5" :key="i" class="text-yellow-400">★</span>
+                  <span v-for="i in supplierInfo.rating" :key="i" class="text-yellow-400">★</span>
                 </div>
               </div>
             </div>
