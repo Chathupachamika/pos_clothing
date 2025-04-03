@@ -121,7 +121,6 @@ const formatCurrency = (value) => {
     currency: 'USD'
   }).format(value)
 }
-
 const validateInput = (field, value) => {
   if (!touchedFields.value[field]) return true
   
