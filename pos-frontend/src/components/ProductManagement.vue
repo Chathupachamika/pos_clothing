@@ -68,7 +68,6 @@ const variationData = reactive({
     sizes: [''],
     generatedVariations: []
 })
-
 const newProduct = ref({
     name: '',
     description: '',
