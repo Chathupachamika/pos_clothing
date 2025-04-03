@@ -143,7 +143,6 @@ const validateInput = (field, value) => {
       return false
     }
   }
-
   formErrors.value[field] = ''
   return true
 }
