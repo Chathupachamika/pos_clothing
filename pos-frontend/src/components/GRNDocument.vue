@@ -95,7 +95,28 @@ const statusColor = computed(() => {
 
 const orderRef = `ORD-${Math.floor(10000 + Math.random() * 90000)}`
 
-const supplierDetails = computed(() => props.productData?.supplierDetails || {})
+const supplierDetails = ref({
+  name: '',
+  email: '',
+  contact: ''
+})
+
+const fetchSupplierDetails = async (id) => {
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/suppliers/${id}`)
+    const data = await response.json()
+    supplierDetails.value = data
+  } catch (error) {
+    console.error('Error fetching supplier details:', error)
+  }
+}
+
+watch(() => props.supplierInfo.id, (newId) => {
+  if (newId) {
+    fetchSupplierDetails(newId)
+  }
+}, { immediate: true })
+
 const productDetails = computed(() => ({
   name: props.productData?.name || 'N/A',
   description: props.productData?.description || 'N/A',
@@ -223,15 +244,15 @@ const productVariations = computed(() => props.productData?.variations || [])
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Company Name:</span>
-                <span class="font-semibold text-gray-800">{{ supplierInfo.name }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.name }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Email Address:</span>
-                <span class="font-semibold text-gray-800">{{ supplierInfo.email }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.email }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Contact Number:</span>
-                <span class="font-semibold text-gray-800">{{ supplierInfo.contact }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.contact }}</span>
               </div>
               <div class="flex">
                 <span class="font-medium w-40 text-gray-500">Supplier Rating:</span>
@@ -254,9 +275,7 @@ const productVariations = computed(() => props.productData?.variations || [])
                 <tr class="bg-gray-50 text-xs uppercase tracking-wider">
                   <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Item Description</th>
                   <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Specifications</th>
-                  <th class="border-b border-gray-200 p-4 text-center font-semibold text-gray-600">Quantity</th>
-                  <th class="border-b border-gray-200 p-4 text-right font-semibold text-gray-600">Unit Price</th>
-                  <th class="border-b border-gray-200 p-4 text-right font-semibold text-gray-600">Total</th>
+                  <th class="border-b border-gray-200 p-4 text-center font-semibold text-gray-600">Variations</th>
                 </tr>
               </thead>
               <tbody>
@@ -269,36 +288,15 @@ const productVariations = computed(() => props.productData?.variations || [])
                       <div>
                         <p class="font-semibold text-gray-800">{{ productDetails.name }}</p>
                         <p class="text-xs text-gray-500 mt-1">{{ productDetails.description }}</p>
-                        <p class="text-xs text-gray-500 mt-1">SKU: {{ productDetails.bar_code }}</p>
                       </div>
                     </div>
                   </td>
                   <td class="p-4">
                     <div class="space-y-1 text-sm">
-                      <p><span class="font-medium text-gray-600">Brand:</span> {{ productDetails.brand_name }}</p>
-                      <p><span class="font-medium text-gray-600">Size:</span> {{ productDetails.size }}</p>
-                      <p><span class="font-medium text-gray-600">Color:</span> {{ productDetails.color }}</p>
+                      <p><span class="font-medium text-gray-600">Brand:</span> <span class="text-black">{{ productDetails.brand_name }}</span></p>
                     </div>
                   </td>
-                  <td class="p-4 text-center font-semibold text-gray-800">{{ productDetails.quantity }}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">Rs. {{ Number(productDetails.price).toFixed(2) }}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">
-                    Rs. {{ (Number(productDetails.price) * Number(productDetails.quantity)).toFixed(2) }}
-                  </td>
-                </tr>
-                <tr v-for="variation in productVariations" :key="variation.id" class="hover:bg-gray-50 transition-colors duration-150">
-                  <td class="p-4">
-                    <div class="space-y-1 text-sm">
-                      <p><span class="font-medium text-gray-600">Color:</span> {{ variation.color }}</p>
-                      <p><span class="font-medium text-gray-600">Size:</span> {{ variation.size }}</p>
-                      <p><span class="font-medium text-gray-600">Barcode:</span> {{ variation.barcode || 'N/A' }}</p>
-                    </div>
-                  </td>
-                  <td class="p-4 text-center font-semibold text-gray-800">{{ variation.quantity }}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">Rs. {{ Number(variation.price).toFixed(2) }}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">
-                    Rs. {{ (Number(variation.price) * Number(variation.quantity)).toFixed(2) }}
-                  </td>
+                  <td class="p-4 text-center font-semibold text-gray-800">{{ productVariations.length }}</td>
                 </tr>
               </tbody>
             </table>
