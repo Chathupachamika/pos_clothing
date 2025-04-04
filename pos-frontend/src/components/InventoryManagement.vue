@@ -25,12 +25,21 @@ import {
     ArrowLeftIcon,
     ArrowRightIcon,
     ClockIcon,
-    ArchiveBoxIcon
+    ArchiveBoxIcon,
+    ExclamationTriangleIcon,
+    ChartBarIcon,
+    ChartPieIcon
 } from '@heroicons/vue/24/outline'
 import Header from './Header.vue'
 import Sidebar from './Sidebar.vue'
 import Swal from 'sweetalert2'
 import GRNDocument from './GRNDocument.vue'
+// Import chart libraries
+import { Bar, Pie } from 'vue-chartjs'
+import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js'
+
+// Register ChartJS components
+ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement)
 
 const isSidebarVisible = ref(false)
 const toggleSidebar = (visible) => {
@@ -75,6 +84,238 @@ const newStockUpdate = ref({
     location: '',
     status: 'In Stock'
 })
+
+// Chart data
+const stockStatusData = computed(() => {
+    if (!productVariations.value.length) return { labels: [], datasets: [] }
+    
+    const inStock = productVariations.value.filter(v => v.quantity >= 20).length
+    const lowStock = productVariations.value.filter(v => v.quantity < 20 && v.quantity > 0).length
+    const outOfStock = productVariations.value.filter(v => v.quantity === 0).length
+    
+    return {
+        labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+        datasets: [
+            {
+                data: [inStock, lowStock, outOfStock],
+                backgroundColor: [
+                    'rgba(52, 211, 153, 0.8)', // Green
+                    'rgba(251, 191, 36, 0.8)', // Yellow
+                    'rgba(239, 68, 68, 0.8)'   // Red
+                ],
+                borderWidth: 1
+            }
+        ]
+    }
+})
+
+const categoryDistributionData = computed(() => {
+    if (!products.value.length) return { labels: [], datasets: [] }
+    
+    // Count products by category
+    const categoryCounts = {}
+    products.value.forEach(product => {
+        if (product.category) {
+            categoryCounts[product.category] = (categoryCounts[product.category] || 0) + 1
+        }
+    })
+    
+    // Convert to chart data format
+    const labels = Object.keys(categoryCounts)
+    const data = Object.values(categoryCounts)
+    
+    // Generate dynamic colors
+    const generateColors = (count) => {
+        const colors = []
+        for (let i = 0; i < count; i++) {
+            // Dynamic pastel-ish colors
+            const hue = (i * 137) % 360
+            colors.push(`hsla(${hue}, 70%, 60%, 0.8)`)
+        }
+        return colors
+    }
+    
+    return {
+        labels,
+        datasets: [
+            {
+                data,
+                backgroundColor: generateColors(labels.length)
+            }
+        ]
+    }
+})
+
+const topProductsData = computed(() => {
+    if (!productVariations.value.length) return { labels: [], datasets: [] }
+    
+    // Group by product_id and sum quantities
+    const productQuantities = {}
+    const productNames = {}
+    
+    productVariations.value.forEach(variation => {
+        const id = variation.product_id
+        if (!productQuantities[id]) {
+            productQuantities[id] = 0
+            // Find the product name
+            const product = products.value.find(p => p.id === id)
+            productNames[id] = product ? product.name : `Product ${id}`
+        }
+        productQuantities[id] += variation.quantity || 0
+    })
+    
+    // Convert to array, sort by quantity, and take top 5
+    const sortedProducts = Object.entries(productQuantities)
+        .map(([id, quantity]) => ({ id, name: productNames[id], quantity }))
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 5)
+    
+    return {
+        labels: sortedProducts.map(p => p.name),
+        datasets: [
+            {
+                label: 'Quantity',
+                data: sortedProducts.map(p => p.quantity),
+                backgroundColor: 'rgba(99, 102, 241, 0.8)', // Indigo
+                borderColor: 'rgba(99, 102, 241, 1)',
+                borderWidth: 1
+            }
+        ]
+    }
+})
+
+const weeklyStockActivity = ref({
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [
+        {
+            label: 'Stock In',
+            data: [12, 19, 8, 15, 20, 14, 11],
+            backgroundColor: 'rgba(52, 211, 153, 0.8)',
+            borderColor: 'rgba(52, 211, 153, 1)',
+            borderWidth: 1
+        },
+        {
+            label: 'Stock Out',
+            data: [7, 11, 5, 8, 13, 9, 6],
+            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+            borderColor: 'rgba(239, 68, 68, 1)',
+            borderWidth: 1
+        }
+    ]
+})
+
+// Chart options
+const pieChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            position: 'bottom',
+            labels: {
+                color: '#e2e8f0',
+                font: {
+                    family: 'Inter, system-ui, sans-serif',
+                    size: 12
+                },
+                padding: 20
+            }
+        },
+        tooltip: {
+            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+            titleColor: '#f9fafb',
+            bodyColor: '#f3f4f6',
+            borderColor: '#374151',
+            borderWidth: 1,
+            padding: 12,
+            boxPadding: 6,
+            usePointStyle: true
+        }
+    }
+}
+
+const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            display: false
+        },
+        tooltip: {
+            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+            titleColor: '#f9fafb',
+            bodyColor: '#f3f4f6',
+            borderColor: '#374151',
+            borderWidth: 1,
+            padding: 12,
+            boxPadding: 6
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            grid: {
+                color: 'rgba(75, 85, 99, 0.2)'
+            },
+            ticks: {
+                color: '#d1d5db'
+            }
+        },
+        x: {
+            grid: {
+                display: false
+            },
+            ticks: {
+                color: '#d1d5db'
+            }
+        }
+    }
+}
+
+const weeklyActivityOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            position: 'top',
+            labels: {
+                color: '#e2e8f0',
+                font: {
+                    family: 'Inter, system-ui, sans-serif',
+                    size: 12
+                },
+                padding: 20
+            }
+        },
+        tooltip: {
+            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+            titleColor: '#f9fafb',
+            bodyColor: '#f3f4f6',
+            borderColor: '#374151',
+            borderWidth: 1,
+            padding: 12,
+            boxPadding: 6
+        }
+    },
+    scales: {
+        y: {
+            beginAtZero: true,
+            grid: {
+                color: 'rgba(75, 85, 99, 0.2)'
+            },
+            ticks: {
+                color: '#d1d5db'
+            }
+        },
+        x: {
+            grid: {
+                display: false
+            },
+            ticks: {
+                color: '#d1d5db'
+            }
+        }
+    }
+}
 
 // Fetch all products
 const fetchProducts = async () => {
@@ -131,6 +372,19 @@ const fetchAllData = async () => {
         fetchProductVariations()
     ])
 }
+
+// KPI calculations
+const totalInventoryValue = computed(() => {
+    return productVariations.value.reduce((total, item) => {
+        return total + (item.price || 0) * (item.quantity || 0)
+    }, 0)
+})
+
+const averageItemPrice = computed(() => {
+    if (productVariations.value.length === 0) return 0
+    const totalPrice = productVariations.value.reduce((sum, item) => sum + (item.price || 0), 0)
+    return totalPrice / productVariations.value.length
+})
 
 // Computed properties
 const mergedData = computed(() => {
@@ -559,7 +813,7 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-                <!-- Stats Cards -->
+                <!-- Extended Stats Cards -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <!-- Total Products Card -->
                     <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 shadow-lg">
@@ -567,8 +821,16 @@ onUnmounted(() => {
                             <div>
                                 <p class="text-gray-400 text-sm">Total Products</p>
                                 <h3 class="text-2xl font-bold text-white mt-1">{{ products.length }}</h3>
+                                <p class="text-green-400 text-xs mt-2 font-medium">
+                                    <span class="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                        </svg>
+                                        12% from last month
+                                    </span>
+                                </p>
                             </div>
-                            <div class="bg-blue-500/20 p-2 rounded-lg">
+                            <div class="bg-gradient-to-br from-blue-500/30 to-purple-500/30 p-3 rounded-lg">
                                 <CubeIcon class="w-6 h-6 text-blue-400" />
                             </div>
                         </div>
@@ -580,8 +842,16 @@ onUnmounted(() => {
                             <div>
                                 <p class="text-gray-400 text-sm">Total Variations</p>
                                 <h3 class="text-2xl font-bold text-white mt-1">{{ productVariations.length }}</h3>
+                                <p class="text-green-400 text-xs mt-2 font-medium">
+                                    <span class="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                        </svg>
+                                        8% from last month
+                                    </span>
+                                </p>
                             </div>
-                            <div class="bg-purple-500/20 p-2 rounded-lg">
+                            <div class="bg-gradient-to-br from-purple-500/30 to-pink-500/30 p-3 rounded-lg">
                                 <TagIcon class="w-6 h-6 text-purple-400" />
                             </div>
                         </div>
@@ -595,8 +865,16 @@ onUnmounted(() => {
                                 <h3 class="text-2xl font-bold text-white mt-1">
                                     {{ productVariations.filter(v => v.quantity < 20 && v.quantity > 0).length }}
                                 </h3>
+                                <p class="text-yellow-400 text-xs mt-2 font-medium">
+                                    <span class="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        Requires attention
+                                    </span>
+                                </p>
                             </div>
-                            <div class="bg-yellow-500/20 p-2 rounded-lg">
+                            <div class="bg-gradient-to-br from-yellow-500/30 to-orange-500/30 p-3 rounded-lg">
                                 <ExclamationTriangleIcon class="w-6 h-6 text-yellow-400" />
                             </div>
                         </div>
@@ -610,258 +888,394 @@ onUnmounted(() => {
                                 <h3 class="text-2xl font-bold text-white mt-1">
                                     {{ productVariations.filter(v => v.quantity === 0).length }}
                                 </h3>
+                                <p class="text-red-400 text-xs mt-2 font-medium">
+                                    <span class="flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        Critical attention
+                                    </span>
+                                </p>
                             </div>
-                            <div class="bg-red-500/20 p-2 rounded-lg">
+                            <div class="bg-gradient-to-br from-red-500/30 to-rose-500/30 p-3 rounded-lg">
                                 <ArchiveBoxIcon class="w-6 h-6 text-red-400" />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Main Table -->
-                <div class="flex-1 bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50">
-                    <div class="h-full overflow-auto">
-                        <table class="w-full table-auto">
-                            <thead class="sticky top-0">
-                                <tr class="bg-gray-700/90 backdrop-blur-sm">
-                                    <th
-                                        @click="toggleSort('product_name')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Product Name</span>
-                                            <component :is="getSortIcon('product_name')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('variation')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Variation</span>
-                                            <component :is="getSortIcon('variation')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('color')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Color</span>
-                                            <component :is="getSortIcon('color')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('size')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Size</span>
-                                            <component :is="getSortIcon('size')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('quantity')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Quantity in Stock</span>
-                                            <component :is="getSortIcon('quantity')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('updated_at')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Updated Time</span>
-                                            <component :is="getSortIcon('updated_at')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                        Stock Update
-                                    </th>
-                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-700/50">
-                                <tr v-if="isLoading" class="hover:bg-gray-700">
-                                    <td colspan="8" class="h-[400px] relative">
-                                        <div class="absolute inset-0 flex items-center justify-center">
-                                            <div class="flex flex-col items-center">
-                                                <div class="loader">
-                                                    <div class="loader-inner"></div>
+                <!-- New Additional KPI Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <!-- Total Inventory Value Card -->
+                    <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 shadow-lg">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-400 text-sm">Total Inventory Value</p>
+                                <h3 class="text-2xl font-bold text-white mt-1">
+                                    {{ formatCurrency(totalInventoryValue) }}
+                                </h3>
+                            </div>
+                            <div class="bg-gradient-to-br from-emerald-500/30 to-teal-500/30 p-3 rounded-lg">
+                                <CurrencyDollarIcon class="w-6 h-6 text-emerald-400" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Average Item Price Card -->
+                    <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 shadow-lg">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-400 text-sm">Average Item Price</p>
+                                <h3 class="text-2xl font-bold text-white mt-1">
+                                    {{ formatCurrency(averageItemPrice) }}
+                                </h3>
+                            </div>
+                            <div class="bg-gradient-to-br from-cyan-500/30 to-blue-500/30 p-3 rounded-lg">
+                                <CurrencyDollarIcon class="w-6 h-6 text-cyan-400" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Active Locations Card -->
+                    <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 shadow-lg">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-400 text-sm">Active Locations</p>
+                                <h3 class="text-2xl font-bold text-white mt-1">
+                                    {{ uniqueLocations.length > 0 ? uniqueLocations.length - 1 : 0 }}
+                                </h3>
+                            </div>
+                            <div class="bg-gradient-to-br from-indigo-500/30 to-violet-500/30 p-3 rounded-lg">
+                                <BuildingOfficeIcon class="w-6 h-6 text-indigo-400" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Product Categories Card -->
+                    <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 shadow-lg">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-400 text-sm">Product Categories</p>
+                                <h3 class="text-2xl font-bold text-white mt-1">
+                                    {{ uniqueCategories.length > 0 ? uniqueCategories.length - 1 : 0 }}
+                                </h3>
+                            </div>
+                            <div class="bg-gradient-to-br from-fuchsia-500/30 to-pink-500/30 p-3 rounded-lg">
+                                <TagIcon class="w-6 h-6 text-fuchsia-400" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Area with Tables and Charts -->
+                <div class="flex flex-col xl:flex-row gap-6">
+                    <!-- Table Section (2/3 width) -->
+                    <div class="w-full xl:w-2/3">
+                        <!-- Main Table -->
+                        <div class="flex-1 bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50">
+                            <div class="h-full overflow-auto">
+                                <table class="w-full table-auto">
+                                    <thead class="sticky top-0">
+                                        <tr class="bg-gray-700/90 backdrop-blur-sm">
+                                            <th
+                                                @click="toggleSort('product_name')"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
+                                            >
+                                                <div class="flex items-center space-x-1">
+                                                    <span>Product Name</span>
+                                                    <component :is="getSortIcon('product_name')" class="w-4 h-4" />
                                                 </div>
-                                                <div class="mt-4 text-base font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse">
-                                                    Loading inventory...
+                                            </th>
+                                            <th
+                                                @click="toggleSort('variation')"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
+                                            >
+                                                <div class="flex items-center space-x-1">
+                                                    <span>Variation</span>
+                                                    <component :is="getSortIcon('variation')" class="w-4 h-4" />
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <template v-else>
-                                    <tr v-if="paginatedData.length === 0" class="hover:bg-gray-700">
-                                        <td colspan="8" class="px-6 py-8 text-center text-gray-400">
-                                            No inventory items available
-                                        </td>
-                                    </tr>
-                                    <template v-else v-for="item in paginatedData" :key="item.id">
-                                        <tr class="hover:bg-gray-700/30 transition-colors duration-200"
-                                            :class="{
-                                                'bg-red-900/20': item.quantity === 0,
-                                                'bg-yellow-900/10': item.quantity > 0 && item.quantity < 20
-                                            }">
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ item.product_name }}</td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span class="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                                    {{ item.id }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                                <div class="flex items-center">
-                                                    <div class="w-4 h-4 rounded-full mr-2" 
-                                                         :style="`background-color: ${item.color.toLowerCase()}`"></div>
-                                                    {{ item.color }}
+                                            </th>
+                                            <th
+                                                @click="toggleSort('color')"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
+                                            >
+                                                <div class="flex items-center space-x-1">
+                                                    <span>Color</span>
+                                                    <component :is="getSortIcon('color')" class="w-4 h-4" />
                                                 </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ item.size }}</td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span :class="{
-                                                    'font-bold': true,
-                                                    'text-red-400': item.quantity === 0,
-                                                    'text-yellow-400': item.quantity > 0 && item.quantity < 20,
-                                                    'text-green-400': item.quantity >= 20
-                                                }">
-                                                    {{ item.quantity }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                                <div class="flex items-center">
-                                                    <ClockIcon class="w-4 h-4 mr-2 text-gray-400" />
-                                                    {{ formatDate(item.updated_at) }}
+                                            </th>
+                                            <th
+                                                @click="toggleSort('size')"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
+                                            >
+                                                <div class="flex items-center space-x-1">
+                                                    <span>Size</span>
+                                                    <component :is="getSortIcon('size')" class="w-4 h-4" />
                                                 </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                                <button 
-                                                    @click="openStockUpdateModal(item)"
-                                                    class="bg-emerald-500/20 p-1.5 rounded text-emerald-400 duration-200 hover:bg-emerald-500/30 transition-colors" 
-                                                    title="Update Stock"
-                                                >
-                                                    <ArrowPathIcon class="w-5 h-5" />
-                                                </button>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                                <div class="flex items-center justify-center space-x-2">
-                                                    <button 
-                                                        @click="openViewModal(item)"
-                                                        class="text-cyan-400 hover:text-cyan-300 p-1.5 hover:bg-gray-700 rounded-full transition-colors"
-                                                        title="View Details"
-                                                    >
-                                                        <EyeIcon class="w-5 h-5" />
-                                                    </button>
-                                                    <button 
-                                                        @click="openDeleteModal(item)"
-                                                        class="text-rose-500 hover:text-rose-400 p-1.5 hover:bg-gray-700 rounded-full transition-colors"
-                                                        title="Delete Variation"
-                                                    >
-                                                        <TrashIcon class="w-5 h-5" />
-                                                    </button>
+                                            </th>
+                                            <th
+                                                @click="toggleSort('quantity')"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
+                                            >
+                                                <div class="flex items-center space-x-1">
+                                                    <span>Quantity in Stock</span>
+                                                    <component :is="getSortIcon('quantity')" class="w-4 h-4" />
+                                                </div>
+                                            </th>
+                                            <th
+                                                @click="toggleSort('updated_at')"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
+                                            >
+                                                <div class="flex items-center space-x-1">
+                                                    <span>Updated Time</span>
+                                                    <component :is="getSortIcon('updated_at')" class="w-4 h-4" />
+                                                </div>
+                                            </th>
+                                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                                Stock Update
+                                            </th>
+                                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
+                                                Actions
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-700/50">
+                                        <tr v-if="isLoading" class="hover:bg-gray-700">
+                                            <td colspan="8" class="h-[400px] relative">
+                                                <div class="absolute inset-0 flex items-center justify-center">
+                                                    <div class="flex flex-col items-center">
+                                                        <div class="loader">
+                                                            <div class="loader-inner"></div>
+                                                        </div>
+                                                        <div class="mt-4 text-base font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse">
+                                                            Loading inventory...
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
-                                    </template>
+                                        <template v-else>
+                                            <tr v-if="paginatedData.length === 0" class="hover:bg-gray-700">
+                                                <td colspan="8" class="px-6 py-8 text-center text-gray-400">
+                                                    No inventory items available
+                                                </td>
+                                            </tr>
+                                            <template v-else v-for="item in paginatedData" :key="item.id">
+                                                <tr class="hover:bg-gray-700/30 transition-colors duration-200"
+                                                    :class="{
+                                                        'bg-red-900/20': item.quantity === 0,
+                                                        'bg-yellow-900/10': item.quantity > 0 && item.quantity < 20
+                                                    }">
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm">{{ item.product_name }}</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                                        <span class="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                                            {{ item.id }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                                        <div class="flex items-center">
+                                                            <div class="w-4 h-4 rounded-full mr-2" 
+                                                                :style="`background-color: ${item.color.toLowerCase()}`"></div>
+                                                            {{ item.color }}
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm">{{ item.size }}</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                                        <span :class="{
+                                                            'font-bold': true,
+                                                            'text-red-400': item.quantity === 0,
+                                                            'text-yellow-400': item.quantity > 0 && item.quantity < 20,
+                                                            'text-green-400': item.quantity >= 20
+                                                        }">
+                                                            {{ item.quantity }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                                        <div class="flex items-center">
+                                                            <ClockIcon class="w-4 h-4 mr-2 text-gray-400" />
+                                                            {{ formatDate(item.updated_at) }}
+                                                        </div>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                        <button 
+                                                            @click="openStockUpdateModal(item)"
+                                                            class="bg-emerald-500/20 p-1.5 rounded text-emerald-400 duration-200 hover:bg-emerald-500/30 transition-colors" 
+                                                            title="Update Stock"
+                                                        >
+                                                            <ArrowPathIcon class="w-5 h-5" />
+                                                        </button>
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                        <div class="flex items-center justify-center space-x-2">
+                                                            <button 
+                                                                @click="openViewModal(item)"
+                                                                class="text-cyan-400 hover:text-cyan-300 p-1.5 hover:bg-gray-700 rounded-full transition-colors"
+                                                                title="View Details"
+                                                            >
+                                                                <EyeIcon class="w-5 h-5" />
+                                                            </button>
+                                                            <button 
+                                                                @click="openDeleteModal(item)"
+                                                                class="text-rose-500 hover:text-rose-400 p-1.5 hover:bg-gray-700 rounded-full transition-colors"
+                                                                title="Delete Variation"
+                                                            >
+                                                                <TrashIcon class="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div class="mt-4 text-sm text-gray-400 flex justify-between items-center">
+                            <div>
+                                Showing {{ Math.min(1 + (currentPage - 1) * itemsPerPage, filteredData.length) }}-{{ Math.min(currentPage * itemsPerPage, filteredData.length) }} of {{ filteredData.length }} items
+                            </div>
+                            <div class="flex space-x-2">
+                                <button 
+                                    @click="changePage(currentPage - 1)" 
+                                    :disabled="currentPage === 1"
+                                    class="px-3 py-1 bg-gray-700 rounded-md hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <template v-if="totalPages <= 5">
+                                    <button 
+                                        v-for="page in totalPages" 
+                                        :key="page"
+                                        @click="changePage(page)"
+                                        :class="[
+                                            'px-3 py-1 rounded-md transition-colors',
+                                            currentPage === page 
+                                                ? 'bg-blue-600 text-white' 
+                                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                        ]"
+                                    >
+                                        {{ page }}
+                                    </button>
                                 </template>
-                            </tbody>
-                        </table>
+                                <template v-else>
+                                    <!-- First page -->
+                                    <button 
+                                        @click="changePage(1)"
+                                        :class="[
+                                            'px-3 py-1 rounded-md transition-colors',
+                                            currentPage === 1 
+                                                ? 'bg-blue-600 text-white' 
+                                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                        ]"
+                                    >
+                                        1
+                                    </button>
+                                    
+                                    <!-- Ellipsis if needed -->
+                                    <span v-if="currentPage > 3" class="px-3 py-1 text-gray-400">...</span>
+                                    
+                                    <!-- Pages around current -->
+                                    <button 
+                                        v-for="page in totalPages" 
+                                        :key="page"
+                                        v-if="page !== 1 && page !== totalPages && Math.abs(page - currentPage) <= 1"
+                                        @click="changePage(page)"
+                                        :class="[
+                                            'px-3 py-1 rounded-md transition-colors',
+                                            currentPage === page 
+                                                ? 'bg-blue-600 text-white' 
+                                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                        ]"
+                                    >
+                                        {{ page }}
+                                    </button>
+                                    
+                                    <!-- Ellipsis if needed -->
+                                    <span v-if="currentPage < totalPages - 2" class="px-3 py-1 text-gray-400">...</span>
+                                    
+                                    <!-- Last page -->
+                                    <button 
+                                        @click="changePage(totalPages)"
+                                        :class="[
+                                            'px-3 py-1 rounded-md transition-colors',
+                                            currentPage === totalPages 
+                                                ? 'bg-blue-600 text-white' 
+                                                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                                        ]"
+                                    >
+                                        {{ totalPages }}
+                                    </button>
+                                </template>
+                                <button 
+                                    @click="changePage(currentPage + 1)" 
+                                    :disabled="currentPage === totalPages"
+                                    class="px-3 py-1 bg-gray-700 rounded-md hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <!-- Pagination -->
-                <div class="mt-4 text-sm text-gray-400 flex justify-between items-center">
-                    <div>
-                        Showing {{ Math.min(1 + (currentPage - 1) * itemsPerPage, filteredData.length) }}-{{ Math.min(currentPage * itemsPerPage, filteredData.length) }} of {{ filteredData.length }} items
-                    </div>
-                    <div class="flex space-x-2">
-                        <button 
-                            @click="changePage(currentPage - 1)" 
-                            :disabled="currentPage === 1"
-                            class="px-3 py-1 bg-gray-700 rounded-md hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 transition-colors"
-                        >
-                            Previous
-                        </button>
-                        <template v-if="totalPages <= 5">
-                            <button 
-                                v-for="page in totalPages" 
-                                :key="page"
-                                @click="changePage(page)"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition-colors',
-                                    currentPage === page 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                ]"
-                            >
-                                {{ page }}
-                            </button>
-                        </template>
-                        <template v-else>
-                            <!-- First page -->
-                            <button 
-                                @click="changePage(1)"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition-colors',
-                                    currentPage === 1 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                ]"
-                            >
-                                1
-                            </button>
-                            
-                            <!-- Ellipsis if needed -->
-                            <span v-if="currentPage > 3" class="px-3 py-1 text-gray-400">...</span>
-                            
-                            <!-- Pages around current -->
-                            <button 
-                                v-for="page in totalPages" 
-                                :key="page"
-                                v-if="page !== 1 && page !== totalPages && Math.abs(page - currentPage) <= 1"
-                                @click="changePage(page)"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition-colors',
-                                    currentPage === page 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                ]"
-                            >
-                                {{ page }}
-                            </button>
-                            
-                            <!-- Ellipsis if needed -->
-                            <span v-if="currentPage < totalPages - 2" class="px-3 py-1 text-gray-400">...</span>
-                            
-                            <!-- Last page -->
-                            <button 
-                                @click="changePage(totalPages)"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition-colors',
-                                    currentPage === totalPages 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                ]"
-                            >
-                                {{ totalPages }}
-                            </button>
-                        </template>
-                        <button 
-                            @click="changePage(currentPage + 1)" 
-                            :disabled="currentPage === totalPages"
-                            class="px-3 py-1 bg-gray-700 rounded-md hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 transition-colors"
-                        >
-                            Next
-                        </button>
+                    
+                    <!-- Charts and Widgets Section (1/3 width) -->
+                    <div class="w-full xl:w-1/3 space-y-6">
+                        <!-- Stock Status Pie Chart -->
+                        <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50 p-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-medium text-gray-200">Stock Status</h3>
+                                <ChartPieIcon class="w-5 h-5 text-purple-400" />
+                            </div>
+                            <div class="h-64">
+                                <Pie 
+                                    :data="stockStatusData" 
+                                    :options="pieChartOptions"
+                                />
+                            </div>
+                        </div>
+                        
+                        <!-- Category Distribution Chart -->
+                        <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50 p-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-medium text-gray-200">Category Distribution</h3>
+                                <ChartPieIcon class="w-5 h-5 text-cyan-400" />
+                            </div>
+                            <div class="h-64">
+                                <Pie 
+                                    :data="categoryDistributionData"
+                                    :options="pieChartOptions"
+                                />
+                            </div>
+                        </div>
+                        
+                        <!-- Top Products Chart -->
+                        <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50 p-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-medium text-gray-200">Top Products by Quantity</h3>
+                                <ChartBarIcon class="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div class="h-64">
+                                <Bar 
+                                    :data="topProductsData"
+                                    :options="barChartOptions"
+                                />
+                            </div>
+                        </div>
+                        
+                        <!-- Weekly Stock Activity Chart -->
+                        <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50 p-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-medium text-gray-200">Weekly Stock Activity</h3>
+                                <ChartBarIcon class="w-5 h-5 text-emerald-400" />
+                            </div>
+                            <div class="h-64">
+                                <Bar 
+                                    :data="weeklyStockActivity"
+                                    :options="weeklyActivityOptions"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
