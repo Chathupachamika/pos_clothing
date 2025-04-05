@@ -66,7 +66,7 @@ const isLoading = ref(true)
 const isUpdating = ref(false)
 const isDeleting = ref(false)
 
-// Form data
+
 const newStockUpdate = ref({
     product_id: null,
     quantity: 0,
