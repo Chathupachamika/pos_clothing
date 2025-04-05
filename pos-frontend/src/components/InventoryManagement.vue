@@ -48,7 +48,7 @@ const grnNumber = ref('')
 const showStockUpdateModal = ref(false)
 const selectedProduct = ref(null)
 
-// Table state
+
 const searchQuery = ref('')
 const categoryFilter = ref('')
 const locationFilter = ref('')
