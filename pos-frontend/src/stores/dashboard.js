@@ -53,7 +53,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
         connection.get('/reports/sales/today'),
         connection.get('/products'),
         connection.get('/cashiers'),
-        connection.get('/sales'),
+        connection.get('api/sales'),
         connection.get('/reports/sales/payment')
       ])
 

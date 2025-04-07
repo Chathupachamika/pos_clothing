@@ -7,37 +7,39 @@ use Illuminate\Database\Eloquent\Model;
 class Sales extends Model
 {
     protected $fillable = [
-        'customer_id',
-        'cashier_id',
-        'amount',
-        'payment_type',
-        'status',
         'time',
-        'discount'
+        'status',
+        'payment_type',
+        'amount',
+        'discount',
+        'customer_id',
     ];
 
     protected $casts = [
-        'payment_type' => 'string'
+        'status' => 'boolean',
+        'payment_type' => 'string',
     ];
 
-    public function product_sales()
-    {
-        return $this->hasMany(Product_Sales::class, 'sales_id');
-    }
-
-    public function products()
-    {
-        return $this->belongsToMany(Product::class, 'product_sales', 'sales_id', 'product_id')
-            ->withPivot('quantity', 'price');
-    }
-
+    // Define the relationship with the Customer model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
     }
 
-    public static function allowedPaymentTypes()
+    // Define the relationship with the OrderItem model
+    public function orderItems()
     {
-        return ['CASH', 'CREDIT_CARD', 'DEBIT_CARD'];
+        return $this->hasMany(OrderItem::class, 'order_id');
+    }
+
+    // Helper method to calculate the total amount after discount
+    public function calculateFinalAmount()
+    {
+        $total = $this->orderItems->sum(function ($item) {
+            return $item->price * $item->quantity;
+        });
+
+        $discountAmount = ($total * $this->discount) / 100;
+        return $total - $discountAmount;
     }
 }

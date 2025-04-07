@@ -2,9 +2,15 @@
 import { ref, computed, watch } from 'vue'
 import html2pdf from 'html2pdf.js'
 import { XMarkIcon, ArrowDownTrayIcon, PrinterIcon, CheckCircleIcon, TruckIcon, DocumentTextIcon } from '@heroicons/vue/24/outline'
+import axios from 'axios'
 
 const props = defineProps({
   productData: {
+    type: Object,
+    required: true,
+    default: () => ({})
+  },
+  supplierData: {
     type: Object,
     required: true,
     default: () => ({})
@@ -84,7 +90,40 @@ const statusColor = computed(() => {
 
 const orderRef = `ORD-${Math.floor(10000 + Math.random() * 90000)}`
 
-const supplierDetails = computed(() => props.productData?.supplierDetails || {})
+const supplierDetails = ref({
+  id: 'N/A',
+  name: 'N/A',
+  email: 'N/A',
+  contact: 'N/A'
+});
+
+const fetchSupplierDetails = async (supplierId) => {
+  try {
+    const response = await axios.get(`/api/suppliers/${supplierId}`);
+    supplierDetails.value = {
+      id: response.data.id || 'N/A',
+      name: response.data.name || 'N/A',
+      email: response.data.email || 'N/A',
+      contact: response.data.contact || 'N/A'
+    };
+  } catch (error) {
+    console.error('Error fetching supplier details:', error);
+    supplierDetails.value = {
+      id: 'N/A',
+      name: 'N/A',
+      email: 'N/A',
+      contact: 'N/A'
+    };
+  }
+};
+
+// Call the function when the component is mounted or when supplierData changes
+watch(() => props.supplierData?.id, (newSupplierId) => {
+  if (newSupplierId) {
+    fetchSupplierDetails(newSupplierId);
+  }
+}, { immediate: true });
+
 const productDetails = computed(() => ({
   name: props.productData?.name || 'N/A',
   description: props.productData?.description || 'N/A',
@@ -92,8 +131,8 @@ const productDetails = computed(() => ({
   size: props.productData?.size || 'N/A',
   color: props.productData?.color || 'N/A',
   price: props.productData?.price || 0,
-  quantity: props.productData?.quantity || 0,
-  bar_code: props.productData?.bar_code || 'N/A'
+  category: props.productData?.category || 'N/A',
+  location: props.productData?.location || 'N/A',
 }))
 
 const productVariations = computed(() => props.productData?.variations || [])
@@ -208,19 +247,19 @@ const productVariations = computed(() => props.productData?.variations || [])
             <div class="space-y-3">
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Supplier ID:</span>
-                <span class="font-semibold text-gray-800">{{ supplierInfo.id }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.value?.id || 'N/A' }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Company Name:</span>
-                <span class="font-semibold text-gray-800">{{ supplierInfo.name }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.value?.name || 'N/A' }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Email Address:</span>
-                <span class="font-semibold text-gray-800">{{ supplierInfo.email }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.value?.email || 'N/A' }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Contact Number:</span>
-                <span class="font-semibold text-gray-800">{{ supplierInfo.contact }}</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.value?.contact || 'N/A' }}</span>
               </div>
               <div class="flex">
                 <span class="font-medium w-40 text-gray-500">Supplier Rating:</span>
@@ -241,11 +280,10 @@ const productVariations = computed(() => props.productData?.variations || [])
             <table class="w-full border-collapse">
               <thead>
                 <tr class="bg-gray-50 text-xs uppercase tracking-wider">
-                  <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Item Description</th>
-                  <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Specifications</th>
-                  <th class="border-b border-gray-200 p-4 text-center font-semibold text-gray-600">Quantity</th>
-                  <th class="border-b border-gray-200 p-4 text-right font-semibold text-gray-600">Unit Price</th>
-                  <th class="border-b border-gray-200 p-4 text-right font-semibold text-gray-600">Total</th>
+                  <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Image</th>
+                  <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Name</th>
+                  <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Brand</th>
+                  <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Description</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,39 +293,11 @@ const productVariations = computed(() => props.productData?.variations || [])
                       <div class="h-10 w-10 flex-shrink-0 rounded bg-gray-100 flex items-center justify-center mr-3">
                         <span class="text-xs text-gray-500">IMG</span>
                       </div>
-                      <div>
-                        <p class="font-semibold text-gray-800">{{ productDetails.name }}</p>
-                        <p class="text-xs text-gray-500 mt-1">{{ productDetails.description }}</p>
-                        <p class="text-xs text-gray-500 mt-1">SKU: {{ productDetails.bar_code }}</p>
-                      </div>
                     </div>
                   </td>
-                  <td class="p-4">
-                    <div class="space-y-1 text-sm">
-                      <p><span class="font-medium text-gray-600">Brand:</span> {{ productDetails.brand_name }}</p>
-                      <p><span class="font-medium text-gray-600">Size:</span> {{ productDetails.size }}</p>
-                      <p><span class="font-medium text-gray-600">Color:</span> {{ productDetails.color }}</p>
-                    </div>
-                  </td>
-                  <td class="p-4 text-center font-semibold text-gray-800">{{ productDetails.quantity }}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">Rs. {{ Number(productDetails.price).toFixed(2) }}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">
-                    Rs. {{ (Number(productDetails.price) * Number(productDetails.quantity)).toFixed(2) }}
-                  </td>
-                </tr>
-                <tr v-for="variation in productVariations" :key="variation.id" class="hover:bg-gray-50 transition-colors duration-150">
-                  <td class="p-4">
-                    <div class="space-y-1 text-sm">
-                      <p><span class="font-medium text-gray-600">Color:</span> {{ variation.color }}</p>
-                      <p><span class="font-medium text-gray-600">Size:</span> {{ variation.size }}</p>
-                      <p><span class="font-medium text-gray-600">Barcode:</span> {{ variation.barcode || 'N/A' }}</p>
-                    </div>
-                  </td>
-                  <td class="p-4 text-center font-semibold text-gray-800">{{ variation.quantity }}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">Rs. {{ Number(variation.price).toFixed(2) }}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">
-                    Rs. {{ (Number(variation.price) * Number(variation.quantity)).toFixed(2) }}
-                  </td>
+                  <td class="p-4 text-gray-800">{{ productDetails.name }}</td>
+                  <td class="p-4 text-gray-800">{{ productDetails.brand_name }}</td>
+                  <td class="p-4 text-gray-800">{{ productDetails.description }}</td>
                 </tr>
               </tbody>
             </table>
@@ -347,7 +357,8 @@ const productVariations = computed(() => props.productData?.variations || [])
                   <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Size</th>
                   <th class="border-b border-gray-200 p-4 text-center font-semibold text-gray-600">Barcode</th>
                   <th class="border-b border-gray-200 p-4 text-center font-semibold text-gray-600">Quantity</th>
-                  <th class="border-b border-gray-200 p-4 text-right font-semibold text-gray-600">Price</th>
+                  <th class="border-b border-gray-200 p-4 text-right font-semibold text-gray-600">Unit Price</th>
+                  <th class="border-b border-gray-200 p-4 text-right font-semibold text-gray-600">Total Price</th>
                 </tr>
               </thead>
               <tbody>
@@ -357,11 +368,26 @@ const productVariations = computed(() => props.productData?.variations || [])
                   <td class="p-4 text-center text-gray-800">{{ variation.barcode || 'N/A' }}</td>
                   <td class="p-4 text-center text-gray-800">{{ variation.quantity }}</td>
                   <td class="p-4 text-right text-gray-800">Rs. {{ Number(variation.price).toFixed(2) }}</td>
+                  <td class="p-4 text-right text-gray-800">Rs. {{ (variation.quantity * variation.price).toFixed(2) }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
           <p v-else class="text-gray-500 italic">No variations available for this product.</p>
+          <div v-if="productVariations.length" class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex justify-between text-sm font-medium text-gray-700">
+              <span>Total Variations:</span>
+              <span>{{ productVariations.length }}</span>
+            </div>
+            <div class="flex justify-between text-sm font-medium text-gray-700 mt-2">
+              <span>Total Quantity:</span>
+              <span>{{ productVariations.reduce((sum, variation) => sum + variation.quantity, 0) }}</span>
+            </div>
+            <div class="flex justify-between text-sm font-medium text-gray-700 mt-2">
+              <span>Total Price:</span>
+              <span>Rs. {{ productVariations.reduce((sum, variation) => sum + (variation.quantity * variation.price), 0).toFixed(2) }}</span>
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
@@ -400,10 +426,10 @@ const productVariations = computed(() => props.productData?.variations || [])
             <div class="h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center text-white mr-2">
               <TruckIcon class="w-5 h-5" />
             </div>
-            <p class="text-sm font-semibold text-gray-700">HARDWARE ENTERPRISE</p>
+            <p class="text-sm font-semibold text-gray-700">LAYOS CLOTHING</p>
           </div>
           <p class="text-xs text-gray-500">This is an official receipt of goods. Please retain for your records.</p>
-          <p class="text-xs text-gray-500 mt-1">© {{ new Date().getFullYear() }} Hardware Enterprise Inc. All rights reserved.</p>
+          <p class="text-xs text-gray-500 mt-1">© {{ new Date().getFullYear() }} LAYOS CLOTHING Inc. All rights reserved.</p>
           <div class="flex justify-center mt-2 space-x-1">
             <div class="h-1 w-1 rounded-full bg-gray-300"></div>
             <div class="h-1 w-1 rounded-full bg-gray-300"></div>

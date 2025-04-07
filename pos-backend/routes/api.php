@@ -14,13 +14,13 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\ProductImagesController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\ReturnItemsController;
-use App\Http\Controllers\SalesController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\SupplierAdminController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\InvestmentController;
 use App\Http\Controllers\LoanController;
+use App\Http\Controllers\PlaceOrderController;
 use App\Http\Controllers\ProductVariationController;
 
 // Cashier Routes
@@ -117,16 +117,25 @@ Route::middleware(['auth:sanctum', 'role:Admin'])->group(function () {
 
 Route::post('/roles-assign', [UserController::class, 'assignRole']);
 
-// sales
-Route::get('/sales', [SalesController::class, 'index']);
-Route::post('/sales', [SalesController::class, 'store']);
-Route::get('/sales/{id}', [SalesController::class, 'view']);
-Route::put('/sales/{id}', [SalesController::class, 'update']);
-Route::get('/sales/customer/{id}', [SalesController::class, 'customerSales']);
+// Sales routes
+Route::prefix('api')->group(function () {
+    Route::get('/sales', [PlaceOrderController::class, 'index']);
+    Route::post('/sales', [PlaceOrderController::class, 'store']);
+    Route::get('/sales/{id}', [PlaceOrderController::class, 'view']);
+    Route::put('/sales/{id}', [PlaceOrderController::class, 'update']);
+    Route::delete('/sales/{id}', [PlaceOrderController::class, 'destroy']);
+    Route::post('/return/sales/{id}', [PlaceOrderController::class, 'return']);
+});
 
-// return sales
-Route::get('/return', [ReturnItemsController::class, 'index']);
-Route::post('/return/sales/{id}', [SalesController::class, 'return']);
+// Return sales routes
+Route::post('/return/sales/{id}', [PlaceOrderController::class, 'return']);
+
+// Reports
+Route::get('/reports/sales', [PlaceOrderController::class, 'salesReports']);
+Route::get('/reports/sales/today', [PlaceOrderController::class, 'salesReportToday']);
+Route::get('/reports/products/best-selling', [PlaceOrderController::class, 'bestSelling']);
+Route::get('/reports/products/return', [PlaceOrderController::class, 'turnOverProducts']);
+Route::get('/reports/sales/payment', [PlaceOrderController::class, 'paymentDistribution']);
 
 //promotions
 Route::get('/promotions', [PromotionController::class, 'index']);
@@ -137,9 +146,9 @@ Route::get('/promotions/{id}', [PromotionController::class, 'show']);
 Route::get('/promotions/product/{id}', [PromotionController::class, 'showByProduct']);
 
 // reports
-Route::middleware('auth:sanctum')->get("/reports/sales", [SalesController::class, 'salesReports']);
-Route::middleware('auth:sanctum')->get("/reports/sales/today", [SalesController::class, 'salesReportToday']);
-Route::middleware('auth:sanctum')->get("/reports/products/best-selling", [SalesController::class, 'bestSelling']);
+Route::middleware('auth:sanctum')->get("/reports/sales", [PlaceOrderController::class, 'salesReports']);
+Route::middleware('auth:sanctum')->get("/reports/sales/today", [PlaceOrderController::class, 'salesReportToday']);
+Route::middleware('auth:sanctum')->get("/reports/products/best-selling", [PlaceOrderController::class, 'bestSelling']);
 
 //Supplier_Admin
 Route::post('/supplier/message', [SupplierAdminController::class, 'store']);
@@ -147,12 +156,12 @@ Route::get('/supplier/message', [SupplierAdminController::class, 'index']);
 Route::get('/supplier/message/{id}', [SupplierAdminController::class, 'show']);
 
 //Sales_Reports
-Route::get('reports/sales', [SalesController::class, 'salesReports']);
-Route::get('reports/sales/today', [SalesController::class, 'salesReportToday']);
-Route::get('reports/products/best-selling', [SalesController::class, 'bestSelling']);
+Route::get('reports/sales', [PlaceOrderController::class, 'salesReports']);
+Route::get('reports/sales/today', [PlaceOrderController::class, 'salesReportToday']);
+Route::get('reports/products/best-selling', [PlaceOrderController::class, 'bestSelling']);
 
-Route::get('reports/products/return', [SalesController::class, 'turnOverProducts']);
-Route::get('reports/sales/payment', [SalesController::class, 'paymentDistribution']);
+Route::get('reports/products/return', [PlaceOrderController::class, 'turnOverProducts']);
+Route::get('reports/sales/payment', [PlaceOrderController::class, 'paymentDistribution']);
 
 // GRN Notes Routes
 Route::get('/grn-notes', [GRNNoteController::class, 'index']);

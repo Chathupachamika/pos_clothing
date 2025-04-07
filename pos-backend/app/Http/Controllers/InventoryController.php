@@ -110,7 +110,7 @@ class InventoryController extends Controller
             $product->location = $validated['location'];
             $product->status = $this->determineStatus($validated['quantity']);
             $product->updated_at = date('Y-m-d H:i:s', strtotime($validated['restock_date_time']));
-            
+
             if (!empty($validated['added_stock_amount']) && $validated['added_stock_amount'] > 0) {
                 $product->added_stock_amount = $validated['added_stock_amount'];
             }
