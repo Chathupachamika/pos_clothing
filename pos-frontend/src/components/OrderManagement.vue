@@ -112,55 +112,49 @@ const orders = ref([])
 const isLoading = ref(false)
 
 const fetchOrders = async () => {
-  isLoading.value = true
+  isLoading.value = true;
   try {
-    const response = await connection.get('/sales')
-    console.log('API Response:', response.data)
-    const sortedData = response.data.data.sort((a, b) => b.id - a.id)
-    orders.value = sortedData.map(order => ({
+    const response = await connection.get('/api/sales'); // Ensure the correct endpoint is used
+    console.log('API Response:', response.data);
+    const sortedData = response.data.map(order => ({
       id: order.id,
       customer_id: order.customer_id,
       customer: order.customer ? {
         id: order.customer.id,
         name: order.customer.name,
         email: order.customer.email,
-        phone: order.customer.phone
+        phone: order.customer.phone,
       } : null,
-      cashier_id: order.cashier_id,
       date: order.time,
-      items: order.product_sales?.length || 0,
+      items: order.items?.length || 0,
       total: order.amount,
-      status: getOrderStatus(order.status),
+      status: order.status ? 'completed' : 'pending',
       payment: order.payment_type,
-      products: order.product_sales ? order.product_sales.map(ps => ({
-        id: ps.product?.id,
-        name: ps.product?.name || 'Unknown Product',
-        description: ps.product?.description || '',
-        quantity: ps.quantity,
-        price: ps.price,
-        total: ps.price * ps.quantity,
-        brand: ps.product?.brand_name,
-        size: ps.product?.size,
-        color: ps.product?.color,
-        barCode: ps.product?.bar_code
+      products: order.items ? order.items.map(item => ({
+        id: item.bar_code,
+        name: item.name || 'Unknown Product',
+        quantity: item.quantity,
+        price: item.price,
+        total: item.price * item.quantity,
       })) : [],
       discount: order.discount || 0,
-      subtotal: order.product_sales?.reduce((sum, ps) => sum + (ps.price * ps.quantity), 0) || 0
-    }))
+      subtotal: order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0,
+    }));
+    orders.value = sortedData;
   } catch (error) {
-    console.error('Error fetching orders:', error)
+    console.error('Error fetching orders:', error);
     Swal.fire({
       title: 'Error',
-      text: 'Failed to fetch orders',
+      text: error.response?.data?.message || 'Failed to fetch orders. Please try again later.',
       icon: 'error',
       confirmButtonColor: '#3B82F6',
       background: '#1e293b',
-      color: '#ffffff'
-    })
+      color: '#ffffff',
+    });
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
-}
+};
 
 const getOrderStatus = (status) => {
   return status === 1 ? 'completed' : 'pending'
@@ -179,43 +173,43 @@ const createOrder = async (orderData) => {
   try {
     const response = await connection.post('/sales', {
       customer_id: orderData.customer_id,
-      cashier_id: orderData.cashier_id,
       payment_type: orderData.payment_type,
       status: orderData.status === 'completed' ? 1 : 0,
       time: new Date().toISOString(),
       amount: orderData.total,
+      discount: orderData.discount,
       items: orderData.products.map(p => ({
-        product_id: p.id,
+        bar_code: p.id,
         quantity: p.quantity,
-        price: p.price
-      }))
-    })
-    return response.data
+        price: p.price,
+      })),
+    });
+    return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to create order')
+    throw new Error(error.response?.data?.message || 'Failed to create order');
   }
-}
+};
 
 const updateOrderInAPI = async (id, orderData) => {
   try {
     const response = await connection.put(`/sales/${id}`, {
       customer_id: orderData.customer_id,
-      cashier_id: orderData.cashier_id,
       payment_type: orderData.payment_type,
       status: orderData.status === 'completed' ? 1 : 0,
       time: new Date().toISOString(),
       amount: orderData.total,
+      discount: orderData.discount,
       items: orderData.products.map(p => ({
-        product_id: p.id,
+        bar_code: p.id,
         quantity: p.quantity,
-        price: p.price
-      }))
-    })
-    return response.data
+        price: p.price,
+      })),
+    });
+    return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.message || 'Failed to update order')
+    throw new Error(error.response?.data?.message || 'Failed to update order');
   }
-}
+};
 
 onMounted(() => {
   fetchOrders()
@@ -783,7 +777,7 @@ const deleteOrder = async (orderId) => {
 }
 
 const updateOrder = async () => {
-  if (!editingOrder.value) return
+  if (!editingOrder.value) return;
 
   try {
     const result = await Swal.fire({
@@ -795,32 +789,30 @@ const updateOrder = async () => {
       cancelButtonColor: '#6B7280',
       confirmButtonText: 'Yes, update it',
       background: '#1e293b',
-      color: '#ffffff'
-    })
+      color: '#ffffff',
+    });
 
     if (result.isConfirmed) {
-      isUpdating.value = true
+      isUpdating.value = true;
 
       const updateData = {
-        customer_id: editingOrder.value.customer_id,
-        cashier_id: editingOrder.value.cashier_id,
-        payment_type: editingOrder.value.payment,
         time: editingOrder.value.date,
         status: editingOrder.value.status === 'completed' ? 1 : 0,
-        amount: editingOrder.value.products.reduce((sum, p) => sum + (p.price * p.quantity), 0),
-        items: editingOrder.value.products.map(p => ({
-          product_id: p.id,
-          quantity: p.quantity,
-          price: p.price
-        })),
+        payment_type: editingOrder.value.payment,
+        amount: calculateTotal(editingOrder.value),
         discount: editingOrder.value.discount || 0,
-        amount: calculateTotal(editingOrder.value)
-      }
+        customer_id: editingOrder.value.customer_id || null,
+        items: editingOrder.value.products.map((p) => ({
+          bar_code: p.id,
+          quantity: p.quantity,
+          price: p.price,
+        })),
+      };
 
-      const response = await connection.put(`/sales/${editingOrder.value.id}`, updateData)
+      const response = await connection.put(`/api/sales/${editingOrder.value.id}`, updateData);
 
-      isUpdateModalOpen.value = false
-      await fetchOrders() 
+      isUpdateModalOpen.value = false;
+      await fetchOrders();
 
       Swal.fire({
         title: 'Updated!',
@@ -828,21 +820,21 @@ const updateOrder = async () => {
         icon: 'success',
         confirmButtonColor: '#3B82F6',
         background: '#1e293b',
-        color: '#ffffff'
-      })
+        color: '#ffffff',
+      });
     }
   } catch (error) {
     console.error('Error updating order:', {
       error,
-      details: error.response?.data
-    })
+      details: error.response?.data,
+    });
 
-    let errorMessage = 'Failed to update order'
+    let errorMessage = 'Failed to update order';
     if (error.response?.data?.errors) {
-      const validationErrors = Object.values(error.response.data.errors).flat()
-      errorMessage = validationErrors.join('\n')
+      const validationErrors = Object.values(error.response.data.errors).flat();
+      errorMessage = validationErrors.join('\n');
     } else if (error.response?.data?.message) {
-      errorMessage = error.response.data.message
+      errorMessage = error.response.data.message;
     }
 
     Swal.fire({
@@ -851,12 +843,12 @@ const updateOrder = async () => {
       icon: 'error',
       confirmButtonColor: '#3B82F6',
       background: '#1e293b',
-      color: '#ffffff'
-    })
+      color: '#ffffff',
+    });
   } finally {
-    isUpdating.value = false
+    isUpdating.value = false;
   }
-}
+};
 
 const bulkDeleteOrders = async () => {
   if (selectedOrders.value.length === 0) {
@@ -995,15 +987,15 @@ const openUpdateModal = (order) => {
 }
 
 const openReturnModal = (order) => {
-  returningOrder.value = order
+  returningOrder.value = order;
   selectedItems.value = order.products.map(p => ({
-    product_id: p.id,
+    order_item_id: p.id, // Ensure this matches the backend's `order_item_id` field
     name: p.name,
     max_quantity: p.quantity,
     quantity: 0,
     reason: ''
-  }))
-  isReturnModalOpen.value = true
+  }));
+  isReturnModalOpen.value = true;
 }
 
 const validateReturnQuantity = (item) => {
@@ -1037,29 +1029,21 @@ const validateReturnQuantity = (item) => {
 
 const submitReturn = async () => {
   try {
-    const itemsToReturn = selectedItems.value.filter(item => item.quantity > 0)
-    
-    const invalidItems = selectedItems.value
-      .filter(item => item.quantity > 0)
-      .map(item => ({
-        item,
-        validation: validateReturnQuantity(item)
-      }))
-      .filter(({ validation }) => !validation.valid)
+    const itemsToReturn = selectedItems.value.filter(item => item.quantity > 0);
 
-    if (invalidItems.length > 0) {
+    if (itemsToReturn.length === 0) {
       Swal.fire({
-        title: 'Invalid Quantities',
-        html: invalidItems.map(({ item, validation }) => 
-          `<p>• ${item.name}: ${validation.message}</p>`
-        ).join(''),
-        icon: 'error',
+        title: 'No Items Selected',
+        text: 'Please select at least one item to return.',
+        icon: 'warning',
         confirmButtonColor: '#3B82F6',
         background: '#1e293b',
-        color: '#ffffff'
-      })
-      return
+        color: '#ffffff',
+      });
+      return;
     }
+
+    console.log('Returning Items:', itemsToReturn); // Log the details of the items being returned
 
     const result = await Swal.fire({
       title: 'Confirm Return',
@@ -1070,48 +1054,60 @@ const submitReturn = async () => {
       cancelButtonColor: '#6B7280',
       confirmButtonText: 'Yes, return items',
       background: '#1e293b',
-      color: '#ffffff'
-    })
+      color: '#ffffff',
+    });
 
     if (result.isConfirmed) {
-      isProcessingReturn.value = true
-      await connection.post(`/return/sales/${returningOrder.value.id}`, {
-        cashier_id: 1, 
-        payment_type: returningOrder.value.payment,
-        status: 0,
-        items: itemsToReturn.map(item => ({
-          product_id: item.product_id,
-          quantity: item.quantity,
-          reason: item.reason
-        }))
-      })
+      isProcessingReturn.value = true;
 
-      isReturnModalOpen.value = false
-      await fetchOrders() 
+      // Ensure the payload matches the backend's expectations
+      const returnData = {
+        items: itemsToReturn.map(item => ({
+          order_item_id: item.order_item_id, // Correctly map to order_item_id
+          quantity: item.quantity,
+          reason: item.reason,
+        })),
+      };
+
+      // Send the request to the backend
+      await connection.post(`/return/sales/${returningOrder.value.id}`, returnData);
+
+      isReturnModalOpen.value = false;
+      await fetchOrders();
 
       Swal.fire({
         title: 'Success!',
-        text: 'Items have been returned successfully',
+        text: 'Items have been returned successfully.',
         icon: 'success',
         confirmButtonColor: '#3B82F6',
         background: '#1e293b',
-        color: '#ffffff'
-      })
+        color: '#ffffff',
+      });
     }
   } catch (error) {
-    console.error('Error returning items:', error)
+    console.error('Error returning items:', error);
+
+    // Extract and display validation errors if available
+    let errorMessage = 'Failed to return items.';
+    if (error.response?.data?.errors) {
+      const validationErrors = Object.values(error.response.data.errors).flat();
+      errorMessage = validationErrors.join('\n');
+    } else if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    }
+
     Swal.fire({
       title: 'Error',
-      text: error.response?.data?.message || 'Failed to return items',
+      text: errorMessage,
       icon: 'error',
       confirmButtonColor: '#3B82F6',
       background: '#1e293b',
-      color: '#ffffff'
-    })
+      color: '#ffffff',
+    });
   } finally {
-    isProcessingReturn.value = false
+    isProcessingReturn.value = false;
   }
-}
+};
 
 const calculateDiscountAmount = (order) => {
   const subtotal = order.products.reduce((sum, item) => sum + (item.price * item.quantity), 0);

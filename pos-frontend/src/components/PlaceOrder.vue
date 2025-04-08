@@ -130,15 +130,10 @@ const fetchProducts = async () => {
     products.value = response.data.data.map(product => ({
       id: product.id,
       name: product.name,
-      price: product.price,
       brand_name: product.brand_name,
-      quantity: product.quantity,
       category: product.category,
-      status: product.status,
-      color: product.color,
-      size: product.size,
-      discount: product.discount,
-      image_url: product.image_url 
+      image_url: product.image_url,
+      variations: product.variations || [] // Include variations
     }))
   } catch (err) {
     error.value = 'Failed to fetch products'
@@ -278,6 +273,19 @@ const filteredProducts = computed(() => {
   return result
 })
 
+const filteredVariations = computed(() => {
+  return products.value.flatMap(product =>
+    product.variations.map(variation => ({
+      ...variation,
+      sellingPrice: variation.selling_price || 0, // Ensure a default value
+      productName: product.name,
+      productBrand: product.brand_name,
+      productCategory: product.category,
+      productImage: product.image_url
+    }))
+  );
+});
+
 onMounted(() => {
   updateCategoriesPerPage()
   window.addEventListener('resize', updateCategoriesPerPage)
@@ -301,44 +309,46 @@ watch(categoriesPerPage, () => {
   }
 })
 
-const addToOrder = (product) => {
-  const existingItem = orderItems.value.find(item => item.id === product.id)
+const addToOrder = (variation) => {
+  const existingItem = orderItems.value.find(item => item.barcode === variation.barcode);
 
   if (existingItem) {
-    if (existingItem.quantity >= product.quantity) {
+    if (existingItem.quantity >= variation.quantity) {
       Swal.fire({
         title: 'Stock Limit Reached',
         text: 'Cannot add more items than available in stock',
         icon: 'warning',
         background: '#1e293b',
         color: '#ffffff'
-      })
-      return
+      });
+      return;
     }
-    existingItem.quantity++
+    existingItem.quantity++;
   } else {
-    if (product.quantity > 0) {
+    if (variation.quantity > 0) {
       orderItems.value.push({
-        id: product.id,
-        name: product.name,
-        price: product.price,
+        barcode: variation.barcode,
+        name: variation.productName,
+        color: variation.color,
+        size: variation.size,
+        price: variation.sellingPrice,
         quantity: 1,
-        initialStock: product.quantity 
-      })
+        initialStock: variation.quantity
+      });
     } else {
       Swal.fire({
         title: 'Out of Stock',
-        text: 'This item is currently out of stock',
+        text: 'This variation is currently out of stock',
         icon: 'error',
         background: '#1e293b',
         color: '#ffffff'
-      })
-      return
+      });
+      return;
     }
   }
 
-  showToast(`Added ${product.name} to order`)
-}
+  showToast(`Added ${variation.productName} (${variation.color}, ${variation.size}) to order`);
+};
 
 const subtotal = computed(() => {
   return orderItems.value.reduce((total, item) => {
@@ -372,32 +382,35 @@ const showToast = (message) => {
 }
 
 const updateQuantity = (item, change) => {
-  const product = products.value.find(p => p.id === item.id)
-  const newQuantity = item.quantity + change
+  const variation = products.value
+    .flatMap(product => product.variations)
+    .find(v => v.barcode === item.barcode);
+
+  const newQuantity = item.quantity + change;
 
   if (newQuantity <= 0) {
-    removeFromOrder(item.id)
-    return
+    removeFromOrder(item.barcode);
+    return;
   }
 
-  if (newQuantity > product.quantity) { 
+  if (newQuantity > variation.quantity) {
     Swal.fire({
       title: 'Stock Limit Reached',
-      text: `Maximum available stock is ${product.quantity} units`,
+      text: `Maximum available stock is ${variation.quantity} units`,
       icon: 'warning',
       background: '#1e293b',
       color: '#ffffff'
-    })
-    item.quantity = product.quantity
-    return
+    });
+    item.quantity = variation.quantity;
+    return;
   }
 
-  item.quantity = newQuantity
-}
+  item.quantity = newQuantity;
+};
 
-const removeFromOrder = (itemId) => {
-  orderItems.value = orderItems.value.filter(item => item.id !== itemId)
-}
+const removeFromOrder = (barcode) => {
+  orderItems.value = orderItems.value.filter(item => item.barcode !== barcode);
+};
 
 const clearOrder = () => {
   orderItems.value = []
@@ -442,10 +455,10 @@ const orderNumber = ref('')
 
 const completeOrder = async () => {
   try {
-    isProcessingOrder.value = true
+    isProcessingOrder.value = true;
 
     if (!cashierId.value) {
-      throw new Error('No cashier ID found. Please login again.')
+      throw new Error('No cashier ID found. Please login again.');
     }
 
     const salesData = {
@@ -453,30 +466,27 @@ const completeOrder = async () => {
       status: orderStatus.value,
       payment_type: selectedPaymentMethod.value,
       amount: total.value,
-      cashier_id: cashierId.value,
+      discount: applyDiscount.value ? customDiscountRate.value : 0,
       customer_id: customerName.value === 'Walk-in Customer' ? null : 
         customers.value.find(c => c.name === customerName.value)?.id,
-      discount: applyDiscount.value ? customDiscountRate.value : 0,
       items: orderItems.value.map(item => ({
-        product_id: item.id,
+        bar_code: item.barcode,
         quantity: item.quantity,
         price: item.price
       }))
-    }
+    };
 
-    const response = await connection.post('/sales', salesData)
-    
+    const response = await connection.post('api/sales', salesData);
+
     if (response.status === 201) {
-      // Set both invoice number and order number from the response
-      invoiceNumber.value = response.data.data.id.toString().padStart(4, '0')
-      orderNumber.value = response.data.data.id.toString().padStart(4, '0')
-      
-      orderItems.value.forEach(item => {
-        updateProductStock(item.id, item.quantity)
-      })
+      invoiceNumber.value = response.data.data.id.toString().padStart(4, '0');
+      orderNumber.value = response.data.data.id.toString().padStart(4, '0');
 
-      isPaymentModalOpen.value = false
-      console.log('Order completed successfully!')
+      orderItems.value.forEach(item => {
+        updateProductStock(item.barcode, item.quantity);
+      });
+
+      isPaymentModalOpen.value = false;
 
       Swal.fire({
         title: 'Order Completed!',
@@ -491,51 +501,85 @@ const completeOrder = async () => {
         color: '#ffffff'
       }).then((result) => {
         if (result.isConfirmed) {
-          isReceiptVisible.value = true
+          isReceiptVisible.value = true;
         } else {
-          clearOrder()
+          clearOrder();
         }
-      })
+      });
     }
   } catch (error) {
     console.error('Error completing order:', {
       error,
       errorMessage: error.message,
       errorResponse: error.response?.data
-    })
+    });
 
     Swal.fire({
       title: 'Error!',
-      text: 'Failed to complete the order. Please try again.',
+      text: error.response?.data?.message || 'Failed to complete the order. Please try again.',
       icon: 'error',
       background: '#1e293b',
       color: '#ffffff'
-    })
+    });
   } finally {
-    isProcessingOrder.value = false
+    isProcessingOrder.value = false;
   }
-}
+};
 
-const printReceipt = () => {
-  const element = document.getElementById('receipt-content')
-  const opt = {
-    margin: [10, 10, 10, 10],
-    filename: `invoice-${invoiceNumber.value}.pdf`,
-    image: { type: 'jpeg', quality: 1 },
-    html2canvas: { 
-      scale: 2,
-      useCORS: true,
-      logging: false
-    },
-    jsPDF: { 
-      unit: 'mm', 
-      format: 'a4', 
-      orientation: 'portrait'
+const printReceipt = async () => {
+  try {
+    const element = document.getElementById('receipt-content');
+    if (!element) {
+      Swal.fire({
+        title: 'Error!',
+        text: 'Receipt content is not available. Please try again.',
+        icon: 'error',
+        background: '#1e293b',
+        color: '#ffffff',
+      });
+      return;
     }
-  }
 
-  html2pdf().set(opt).from(element).save()
-}
+    // Wait for the receipt content to render completely
+    await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay to ensure rendering
+
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `invoice-${invoiceNumber.value || 'unknown'}.pdf`,
+      image: { type: 'jpeg', quality: 1 },
+      html2canvas: { 
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      },
+      jsPDF: { 
+        unit: 'mm', 
+        format: 'a4', 
+        orientation: 'portrait',
+      },
+    };
+
+    // Generate the PDF
+    await html2pdf().set(opt).from(element).save();
+
+    Swal.fire({
+      title: 'Success!',
+      text: 'Receipt has been printed successfully.',
+      icon: 'success',
+      background: '#1e293b',
+      color: '#ffffff',
+    });
+  } catch (error) {
+    console.error('Error generating receipt:', error);
+    Swal.fire({
+      title: 'Error!',
+      text: 'Failed to generate the receipt. Please try again.',
+      icon: 'error',
+      background: '#1e293b',
+      color: '#ffffff',
+    });
+  }
+};
 
 const closeReceipt = () => {
   isReceiptVisible.value = false
@@ -731,7 +775,7 @@ onMounted(async () => {
               </div>
               <h2 class="font-bold text-gray-200 text-lg">Products</h2>
               <div class="ml-auto text-sm text-gray-400">
-                {{ filteredProducts.length }} items found
+                {{ filteredVariations.length }} items found
               </div>
             </div>
 
@@ -743,37 +787,37 @@ onMounted(async () => {
               {{ error }}
             </div>
             
-            <div v-else-if="filteredProducts.length === 0" class="text-center py-12 text-gray-500 bg-gray-800/20 rounded-lg">
+            <div v-else-if="filteredVariations.length === 0" class="text-center py-12 text-gray-500 bg-gray-800/20 rounded-lg">
               <Package class="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p class="text-lg font-medium">No products found</p>
+              <p class="text-lg font-medium">No items found</p>
               <p class="text-sm mt-2">Try changing your search term</p>
             </div>
 
             <div v-else class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              <div v-for="product in filteredProducts" 
-                   :key="product.id" 
-                   @click="addToOrder(product)" 
+              <div v-for="variation in filteredVariations" 
+                   :key="variation.barcode" 
+                   @click="addToOrder(variation)" 
                    :class="[
                      'bg-gradient-to-br rounded-lg overflow-hidden cursor-pointer transition-all duration-200 border hover:shadow-lg group relative hover:translate-y-[-2px]',
                      {
-                       'from-red-500/10 to-red-900/10 border-red-500/50': product.quantity === 0,
-                       'from-yellow-500/10 to-yellow-900/10 border-yellow-500/50': product.quantity > 0 && product.quantity < 20,
-                       'from-[#1e293b] to-[#1a2234] border-[#334155] hover:border-[#475569]': product.quantity >= 20
+                       'from-red-500/10 to-red-900/10 border-red-500/50': variation.quantity === 0,
+                       'from-yellow-500/10 to-yellow-900/10 border-yellow-500/50': variation.quantity > 0 && variation.quantity < 20,
+                       'from-[#1e293b] to-[#1a2234] border-[#334155] hover:border-[#475569]': variation.quantity >= 20
                      }
                    ]">
                 
                 <div class="aspect-w-16 aspect-h-9 bg-gray-800/50">
-                  <div v-if="product.image_url" class="w-full h-48 overflow-hidden">
+                  <div v-if="variation.productImage" class="w-full h-48 overflow-hidden">
                     <img 
-                      :src="product.image_url" 
-                      :alt="product.name"
+                      :src="variation.productImage" 
+                      :alt="variation.productName"
                       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       @error="$event.target.src = '/placeholder-product.png'"
                     />
                   </div>
                   <div v-else class="w-full h-48 flex items-center justify-center bg-gray-700/50">
                     <div class="text-4xl font-bold text-gray-500">
-                      {{ product.name?.charAt(0).toUpperCase() }}
+                      {{ variation.productName?.charAt(0).toUpperCase() }}
                     </div>
                   </div>
                 </div>
@@ -783,43 +827,51 @@ onMounted(async () => {
                 <div class="p-4 pl-5">
                   <div class="flex items-center justify-between mb-3">
                     <div class="bg-gray-700/50 text-gray-300 text-xs px-2 py-1 rounded-full flex items-center gap-1">
-                      <component :is="getCategoryIcon(product.category)" class="w-3 h-3" />
-                      <span>{{ getCategoryName(product.category) }}</span>
+                      <component :is="getCategoryIcon(variation.productCategory)" class="w-3 h-3" />
+                      <span>{{ getCategoryName(variation.productCategory) }}</span>
                     </div>
                     
                     <div :class="[
                       'text-xs px-2 py-1 rounded-full flex items-center gap-1',
                       {
-                        'bg-red-500/20 text-red-400': product.quantity === 0,
-                        'bg-yellow-500/20 text-yellow-400': product.quantity > 0 && product.quantity < 20,
-                        'bg-green-500/20 text-green-400': product.quantity >= 20
+                        'bg-red-500/20 text-red-400': variation.quantity === 0,
+                        'bg-yellow-500/20 text-yellow-400': variation.quantity > 0 && variation.quantity < 20,
+                        'bg-green-500/20 text-green-400': variation.quantity >= 20
                       }
                     ]">
                       <Layers class="w-3 h-3" />
                       <span>
-                        {{ product.quantity === 0 ? 'Out of Stock' : 
-                           product.quantity < 20 ? `Low Stock: ${product.quantity}` : 
-                           `In Stock: ${product.quantity}` }}
+                        {{ variation.quantity === 0 ? 'Out of Stock' : 
+                           variation.quantity < 20 ? `Low Stock: ${variation.quantity}` : 
+                           `In Stock: ${variation.quantity}` }}
                       </span>
                     </div>
                   </div>
                   
-                  <div class="text-xs text-gray-500 mb-1">ID: #{{ product.id.toString().padStart(4, '0') }}</div>
+                  <div class="text-xs text-gray-500 mb-1">Barcode: {{ variation.barcode }}</div>
                   
-                  <div class="font-medium text-white text-lg mb-2">{{ product.name }}</div>
-                  <div class="text-sm text-gray-400 mb-3">{{ product.brand_name }}</div>
+                  <div class="font-medium text-white text-lg mb-2">{{ variation.productName }}</div>
+                  <div class="text-sm text-gray-400 mb-3">{{ variation.productBrand }}</div>
+                  
+                  <!-- Add size and color details -->
+                  <div class="text-sm text-gray-400 mb-3">
+                    <span class="font-medium text-gray-300">Size:</span> {{ variation.size || 'N/A' }}
+                  </div>
+                  <div class="text-sm text-gray-400 mb-3">
+                    <span class="font-medium text-gray-300">Color:</span> {{ variation.color || 'N/A' }}
+                  </div>
                   
                   <div class="h-px bg-gradient-to-r from-transparent via-gray-700 to-transparent my-3"></div>
                   
                   <div class="flex justify-between items-center">
                     <div>
                       <div class="text-xs text-gray-400 mb-1">Price</div>
-                      <div class="text-blue-400 font-bold text-lg">Rs. {{ Number(product.price).toLocaleString() }}</div>
+                      <div class="text-blue-400 font-bold text-lg">Rs. {{ Number(variation.sellingPrice).toLocaleString() }}</div>
                     </div>
                     
                     <button :class="[
                       'p-2 rounded-lg transition-colors duration-200 text-white flex items-center gap-2',
-                      product.quantity === 0 ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
+                      variation.quantity === 0 ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'
                     ]">
                       <Plus class="w-4 h-4" />
                       <span>Add</span>
@@ -872,15 +924,17 @@ onMounted(async () => {
               <div v-if="orderItems.length === 0" class="text-center py-10 text-gray-500">
                 <ShoppingCart class="w-12 h-12 mx-auto mb-3 opacity-30" />
                 <p class="text-sm font-medium">Your cart is empty</p>
-                <p class="text-xs mt-1">Click on products to add them to your order</p>
+                <p class="text-xs mt-1">Click on variations to add them to your order</p>
               </div>
 
               <div v-else class="space-y-3">
-                <div v-for="item in orderItems" :key="item.id"
+                <div v-for="item in orderItems" :key="item.barcode"
                   class="bg-gray-700/20 rounded-lg p-3 border border-gray-700/30 hover:border-gray-600/50 transition-colors duration-200">
                   <div class="flex-1 min-w-0">
                     <div class="flex justify-between">
-                      <div class="font-medium text-sm truncate text-white">{{ item.name }}</div>
+                      <div class="font-medium text-sm truncate text-white">
+                        {{ item.name }} ({{ item.color }}, {{ item.size }})
+                      </div>
                       <div class="text-blue-400 text-xs font-bold">Rs. {{ item.price.toLocaleString() }}</div>
                     </div>
 
@@ -901,7 +955,7 @@ onMounted(async () => {
                         Rs. {{ (item.price * item.quantity).toLocaleString() }}
                       </div>
 
-                      <button @click.stop="removeFromOrder(item.id)"
+                      <button @click.stop="removeFromOrder(item.barcode)"
                         class="p-1.5 text-red-400 hover:bg-red-400/10 rounded transition-colors">
                         <Trash2 class="w-3.5 h-3.5" />
                       </button>
@@ -1128,17 +1182,16 @@ onMounted(async () => {
             <table class="w-full">
               <thead>
                 <tr class="bg-gray-100">
-                  <th class="py-3 px-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Description</th>
+                  <th class="py-3 px-4 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Item</th>
                   <th class="py-3 px-4 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Unit Price</th>
                   <th class="py-3 px-4 text-center text-xs font-medium text-gray-600 uppercase tracking-wider">Quantity</th>
                   <th class="py-3 px-4 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Amount</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-200">
-                <tr v-for="item in orderItems" :key="item.id" class="text-sm">
+                <tr v-for="item in orderItems" :key="item.barcode" class="text-sm">
                   <td class="py-4 px-4">
-                    <div class="font-medium text-gray-800">{{ item.name }}</div>
-                    <div class="text-gray-500 text-xs">Item #{{ item.id.toString().padStart(4, '0') }}</div>
+                    <div class="font-medium text-gray-800">{{ item.name }} ({{ item.color }}, {{ item.size }})</div>
                   </td>
                   <td class="py-4 px-4 text-right text-gray-800">Rs. {{ item.price.toLocaleString() }}</td>
                   <td class="py-4 px-4 text-center text-gray-800">{{ item.quantity }}</td>

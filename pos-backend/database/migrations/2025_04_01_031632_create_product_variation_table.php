@@ -19,7 +19,7 @@ return new class extends Migration
             $table->decimal('price', 10, 2);
             $table->decimal('selling_price', 10, 2);
             $table->integer('quantity')->default(0);
-            $table->string('barcode')->nullable();
+            $table->string('barcode')->nullable()->index(); // Add index to the barcode column
             $table->decimal('discount', 5, 2)->nullable()->default(0.00);
             $table->enum('status', ['In Stock', 'Low Stock', 'Out of Stock'])->default('In Stock');
             $table->timestamps();
