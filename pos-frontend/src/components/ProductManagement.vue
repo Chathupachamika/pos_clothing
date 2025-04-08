@@ -33,7 +33,6 @@ const isSidebarVisible = ref(false)
 const toggleSidebar = (visible) => {
     isSidebarVisible.value = visible
 }
-
 const showModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteModal = ref(false)
@@ -41,13 +40,19 @@ const showViewModal = ref(false)
 const showGRN = ref(false)
 const grnProduct = ref(null)
 const grnNumber = ref('')
+const showGRNModal = ref(false);
+const selectedProduct = ref(null);
+ 
+const handleShowGRN = (product) => {
+   selectedProduct.value = product;
+   showGRNModal.value = true;
+};
 
-// Multi-step modal state
 const showMultiStepModal = ref(false)
 const currentStep = ref(1)
 const totalSteps = 2
 
-// Product and variation data for multi-step form
+
 const newProductData = reactive({
     name: '',
     description: '',
@@ -63,7 +68,6 @@ const variationData = reactive({
     sizes: [''],
     generatedVariations: []
 })
-
 const newProduct = ref({
     name: '',
     description: '',
@@ -117,7 +121,6 @@ const formatCurrency = (value) => {
     currency: 'USD'
   }).format(value)
 }
-
 const validateInput = (field, value) => {
   if (!touchedFields.value[field]) return true
   
@@ -139,7 +142,6 @@ const validateInput = (field, value) => {
       return false
     }
   }
-
   formErrors.value[field] = ''
   return true
 }
@@ -166,7 +168,6 @@ const products = ref([])
 const isLoading = ref(true)
 const isAddingProduct = ref(false)
 const isUpdatingProduct = ref(false)
-
 const fetchProducts = async () => {
     isLoading.value = true
     try {
@@ -183,7 +184,7 @@ const fetchProducts = async () => {
             created_at: product.created_at,
             updated_at: product.updated_at,
             image_url: product.image_url,
-            variations: product.variations || [] // Ensure variations are included
+            variations: product.variations || [] 
         }))
         
         if (response.data.meta) {
@@ -240,7 +241,7 @@ const filteredProducts = computed(() => {
     return result
 })
 
-// Function to calculate the variation amount for each product
+
 const calculateVariationAmount = (product) => {
     if (!product.variations || product.variations.length === 0) return 0;
     return product.variations.reduce((total, variation) => {
@@ -342,7 +343,6 @@ const handleAddProduct = async () => {
         category: '',
         location: '',                                                                                           
       }
-
       Swal.fire({
         position: "center",
         icon: "success",
@@ -376,7 +376,6 @@ const handleAddProduct = async () => {
     } else if (error.message) {
         errorMessage = error.message
     }
-
     console.error('Error adding product:', error)
     
     Swal.fire({
@@ -918,11 +917,11 @@ const newVariation = ref({
     color: '',
     size: '',
     barcode: '',
-    addAmount: '',
     price: '',
     selling_price: '',
-    discount: '',
-    quantity: ''
+    discount: '0',
+    quantity: '',
+    status: 'In Stock'
 })
 
 const openAddVariationModal = (productId) => {
@@ -931,11 +930,11 @@ const openAddVariationModal = (productId) => {
         color: '',
         size: '',
         barcode: '',
-        addAmount: '',
         price: '',
         selling_price: '',
-        discount: '',
-        quantity: ''
+        discount: '0',
+        quantity: '',
+        status: 'In Stock'
     }
     showVariationModal.value = true
 }
@@ -1033,12 +1032,11 @@ const editingVariation = ref({
     color: '',
     size: '',
     barcode: '',
-    addAmount: '',
     price: '',
     selling_price: '',
     discount: '',
     quantity: '',
-    status: '', // Add 'status' field
+    status: '',
 });
 
 const openEditVariationModal = (variation) => {
@@ -1047,11 +1045,10 @@ const openEditVariationModal = (variation) => {
         color: variation.color,
         size: variation.size,
         barcode: variation.barcode,
-        addAmount: variation.addAmount || '',
         price: variation.price,
-        selling_price: variation.selling_price || variation.sellingPrice,
+        selling_price: variation.selling_price,
         discount: variation.discount,
-        quantity: variation.quantity || variation.qty,
+        quantity: variation.quantity,
         status: variation.status || '', // Include 'status' field
     };
     showEditVariationModal.value = true;
@@ -1077,6 +1074,7 @@ const handleEditVariation = async () => {
     }
 
     try {
+        // Ensure we're using the field names expected by the backend
         const payload = {
             color: editingVariation.value.color,
             size: editingVariation.value.size,
@@ -1085,7 +1083,7 @@ const handleEditVariation = async () => {
             selling_price: parseFloat(editingVariation.value.selling_price),
             discount: parseFloat(editingVariation.value.discount || 0),
             quantity: parseInt(editingVariation.value.quantity),
-            status: editingVariation.value.status || 'In Stock', // Include 'status' in the payload
+            status: editingVariation.value.status || 'In Stock',
         };
 
         // Log the payload for debugging
@@ -1147,11 +1145,22 @@ const handleDeleteVariation = async (variationId) => {
 const openGRNDocument = async (product) => {
     try {
         const response = await connection.get(`/product/variations/product/${product.id}`);
-        grnProduct.value = {
-            ...product,
-            variations: response.data.data,
-            supplierDetails: product.supplierDetails || {}
+        // First set up dummy supplier info if none exists
+        const supplierInfo = {
+            id: product.supplier_id,
+            name: 'Supplier',
+            email: 'supplier@example.com', 
+            contact: 'N/A',
+            rating: 5
         };
+        
+        const grnProductData = {
+            ...product,
+            variations: response.data.data || [],
+            supplierDetails: supplierInfo,
+        };
+        
+        grnProduct.value = grnProductData;
         grnNumber.value = `GRN-${product.id}-${new Date().getFullYear()}`;
         showGRN.value = true;
     } catch (error) {
@@ -2181,11 +2190,19 @@ onUnmounted(() => {
             </div>
         </div>
         <GRNDocument 
-            v-if="showGRN"
-            :productData="grnProduct"
-            :grnNumber="grnNumber"
+     v-if="showGRNModal" 
+     :productData="selectedProduct" 
+     :grnNumber="`GRN-${selectedProduct?.id}`" 
+     :showModal="showGRNModal" 
+     @close="showGRNModal = false" 
+   />
+        <GRNDocument 
+            v-if="showGRN" 
+            :productData="grnProduct" 
+            :grnNumber="grnNumber" 
             :showModal="showGRN"
-            @close="showGRN = false"
+            :supplierInfo="grnProduct?.supplierDetails || {}"
+            @close="showGRN = false" 
         />
 
         <div v-if="showImageUploadModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
@@ -2443,10 +2460,11 @@ onUnmounted(() => {
                             <p class="text-sm text-gray-300"><strong>Color:</strong> {{ variation.color }}</p>
                             <p class="text-sm text-gray-300"><strong>Size:</strong> {{ variation.size }}</p>
                             <p class="text-sm text-gray-300"><strong>Barcode:</strong> {{ variation.barcode }}</p>
-                            <p class="text-sm text-gray-300"><strong>Quantity:</strong> {{ variation.quantity || 'N/A' }}</p>
+                            <p class="text-sm text-gray-300"><strong>Quantity:</strong> {{ variation.quantity }}</p>
                             <p class="text-sm text-gray-300"><strong>Price:</strong> ${{ Number(variation.price || 0).toFixed(2) }}</p>
-                            <p class="text-sm text-gray-300"><strong>Selling Price:</strong> ${{ Number(variation.sellingPrice || 0).toFixed(2) }}</p>
+                            <p class="text-sm text-gray-300"><strong>Selling Price:</strong> ${{ Number(variation.selling_price || 0).toFixed(2) }}</p>
                             <p class="text-sm text-gray-300"><strong>Discount:</strong> {{ Number(variation.discount || 0).toFixed(2) }}%</p>
+                            <p class="text-sm text-gray-300"><strong>Status:</strong> {{ variation.status || 'In Stock' }}</p>
                         </div>
                         <div class="flex space-x-2">
                             <button 
@@ -2538,7 +2556,7 @@ onUnmounted(() => {
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Selling Price</label>
                         <input 
-                            v-model="editingVariation.sellingPrice" 
+                            v-model="editingVariation.selling_price" 
                             type="number"
                             step="0.01"
                             class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"
@@ -2558,7 +2576,7 @@ onUnmounted(() => {
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-1">Quantity</label>
                         <input 
-                            v-model="editingVariation.qty" 
+                            v-model="editingVariation.quantity" 
                             type="number"
                             min="0"
                             class="w-full px-4 py-2.5 bg-gray-700 rounded-lg focus:outline-none focus:ring-2 border border-gray-600"

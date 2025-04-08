@@ -23,6 +23,17 @@ const props = defineProps({
   showModal: {
     type: Boolean,
     required: true
+  },
+  supplierInfo: {
+    type: Object,
+    required: false,
+    default: () => ({
+      id: '',
+      name: '',
+      email: '',
+      contact: '',
+      rating: 5
+    })
   }
 })
 
@@ -91,6 +102,7 @@ const statusColor = computed(() => {
 const orderRef = `ORD-${Math.floor(10000 + Math.random() * 90000)}`
 
 const supplierDetails = ref({
+
   id: 'N/A',
   name: 'N/A',
   email: 'N/A',
@@ -123,6 +135,27 @@ watch(() => props.supplierData?.id, (newSupplierId) => {
     fetchSupplierDetails(newSupplierId);
   }
 }, { immediate: true });
+  name: '',
+  email: '',
+  contact: ''
+})
+
+const fetchSupplierDetails = async (id) => {
+  try {
+    const response = await fetch(`http://localhost:8000/api/v1/suppliers/${id}`)
+    const data = await response.json()
+    supplierDetails.value = data
+  } catch (error) {
+    console.error('Error fetching supplier details:', error)
+  }
+}
+
+watch(() => props.supplierInfo.id, (newId) => {
+  if (newId) {
+    fetchSupplierDetails(newId)
+  }
+}, { immediate: true })
+
 
 const productDetails = computed(() => ({
   name: props.productData?.name || 'N/A',
@@ -251,6 +284,7 @@ const productVariations = computed(() => props.productData?.variations || [])
               </div>
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Company Name:</span>
+
                 <span class="font-semibold text-gray-800">{{ supplierDetails.value?.name || 'N/A' }}</span>
               </div>
               <div class="flex border-b border-gray-100 pb-2">
@@ -260,11 +294,22 @@ const productVariations = computed(() => props.productData?.variations || [])
               <div class="flex border-b border-gray-100 pb-2">
                 <span class="font-medium w-40 text-gray-500">Contact Number:</span>
                 <span class="font-semibold text-gray-800">{{ supplierDetails.value?.contact || 'N/A' }}</span>
+
+                <span class="font-semibold text-gray-800">{{ supplierDetails.name }}</span>
+              </div>
+              <div class="flex border-b border-gray-100 pb-2">
+                <span class="font-medium w-40 text-gray-500">Email Address:</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.email }}</span>
+              </div>
+              <div class="flex border-b border-gray-100 pb-2">
+                <span class="font-medium w-40 text-gray-500">Contact Number:</span>
+                <span class="font-semibold text-gray-800">{{ supplierDetails.contact }}</span>
+
               </div>
               <div class="flex">
                 <span class="font-medium w-40 text-gray-500">Supplier Rating:</span>
                 <div class="flex">
-                  <span v-for="i in 5" :key="i" class="text-yellow-400">★</span>
+                  <span v-for="i in supplierInfo.rating" :key="i" class="text-yellow-400">★</span>
                 </div>
               </div>
             </div>
@@ -280,10 +325,16 @@ const productVariations = computed(() => props.productData?.variations || [])
             <table class="w-full border-collapse">
               <thead>
                 <tr class="bg-gray-50 text-xs uppercase tracking-wider">
+
                   <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Image</th>
                   <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Name</th>
                   <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Brand</th>
                   <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Description</th>
+
+                  <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Item Description</th>
+                  <th class="border-b border-gray-200 p-4 text-left font-semibold text-gray-600">Specifications</th>
+                  <th class="border-b border-gray-200 p-4 text-center font-semibold text-gray-600">Variations</th>
+
                 </tr>
               </thead>
               <tbody>
@@ -293,11 +344,26 @@ const productVariations = computed(() => props.productData?.variations || [])
                       <div class="h-10 w-10 flex-shrink-0 rounded bg-gray-100 flex items-center justify-center mr-3">
                         <span class="text-xs text-gray-500">IMG</span>
                       </div>
+
                     </div>
                   </td>
                   <td class="p-4 text-gray-800">{{ productDetails.name }}</td>
                   <td class="p-4 text-gray-800">{{ productDetails.brand_name }}</td>
                   <td class="p-4 text-gray-800">{{ productDetails.description }}</td>
+
+                      <div>
+                        <p class="font-semibold text-gray-800">{{ productDetails.name }}</p>
+                        <p class="text-xs text-gray-500 mt-1">{{ productDetails.description }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="p-4">
+                    <div class="space-y-1 text-sm">
+                      <p><span class="font-medium text-gray-600">Brand:</span> <span class="text-black">{{ productDetails.brand_name }}</span></p>
+                    </div>
+                  </td>
+                  <td class="p-4 text-center font-semibold text-gray-800">{{ productVariations.length }}</td>
+
                 </tr>
               </tbody>
             </table>
