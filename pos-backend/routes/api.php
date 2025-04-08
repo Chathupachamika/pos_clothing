@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\Sales_ProductController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\CashierController;
 use App\Http\Controllers\ProductController;
@@ -195,6 +196,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/assets/{id}', [AssetController::class, 'destroy']);
 });
 
+// Update the returns route to use POST method
+Route::post('/returns/process', [Sales_ProductController::class, 'processReturn']);
+
 // Product Variations
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/product/variations', [ProductVariationController::class, 'index']);
@@ -203,4 +207,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/product/variations/{id}', [ProductVariationController::class, 'update']);
     Route::delete('/product/variations/{id}', [ProductVariationController::class, 'destroy']);
     Route::get('/product/variations/product/{id}', [ProductVariationController::class, 'showByProduct']);
+});
+
+// Returned Items Routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/returned-items', [ReturnItemsController::class, 'index']);
+    Route::post('/returned-items', [ReturnItemsController::class, 'store']);
+    Route::get('/returned-items/{id}', [ReturnItemsController::class, 'show']);
+    Route::put('/returned-items/{id}', [ReturnItemsController::class, 'update']);
+    Route::delete('/returned-items/{id}', [ReturnItemsController::class, 'destroy']);
 });

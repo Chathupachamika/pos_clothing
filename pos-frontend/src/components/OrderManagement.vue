@@ -989,11 +989,12 @@ const openUpdateModal = (order) => {
 const openReturnModal = (order) => {
   returningOrder.value = order;
   selectedItems.value = order.products.map(p => ({
-    order_item_id: p.id, // Ensure this matches the backend's `order_item_id` field
+    order_item_id: p.id,
     name: p.name,
     max_quantity: p.quantity,
     quantity: 0,
-    reason: ''
+    reason: '',
+    original_item: p
   }));
   isReturnModalOpen.value = true;
 }
@@ -1028,81 +1029,66 @@ const validateReturnQuantity = (item) => {
 }
 
 const submitReturn = async () => {
-  try {
-    const itemsToReturn = selectedItems.value.filter(item => item.quantity > 0);
+  if (isProcessingReturn.value) return;
 
-    if (itemsToReturn.length === 0) {
-      Swal.fire({
-        title: 'No Items Selected',
-        text: 'Please select at least one item to return.',
-        icon: 'warning',
-        confirmButtonColor: '#3B82F6',
-        background: '#1e293b',
-        color: '#ffffff',
-      });
-      return;
-    }
+  const validItems = selectedItems.value.filter(item => 
+    item.quantity > 0 && 
+    item.reason && 
+    item.quantity <= item.max_quantity
+  );
 
-    console.log('Returning Items:', itemsToReturn); // Log the details of the items being returned
-
-    const result = await Swal.fire({
-      title: 'Confirm Return',
-      text: 'Are you sure you want to return these items?',
-      icon: 'question',
-      showCancelButton: true,
+  if (validItems.length === 0) {
+    Swal.fire({
+      title: 'Invalid Return Items',
+      text: 'Please select items with valid quantities and reasons',
+      icon: 'warning',
       confirmButtonColor: '#3B82F6',
-      cancelButtonColor: '#6B7280',
-      confirmButtonText: 'Yes, return items',
       background: '#1e293b',
-      color: '#ffffff',
+      color: '#ffffff'
     });
+    return;
+  }
 
-    if (result.isConfirmed) {
-      isProcessingReturn.value = true;
+  try {
+    isProcessingReturn.value = true;
 
-      // Ensure the payload matches the backend's expectations
-      const returnData = {
-        items: itemsToReturn.map(item => ({
-          order_item_id: item.order_item_id, // Correctly map to order_item_id
-          quantity: item.quantity,
-          reason: item.reason,
-        })),
-      };
+    const returnData = {
+      order_id: returningOrder.value.id,
+      items: validItems.map(item => ({
+        id: item.order_item_id,
+        quantity: parseInt(item.quantity),
+        reason: item.reason.trim()
+      }))
+    };
 
-      // Send the request to the backend
-      await connection.post(`/return/sales/${returningOrder.value.id}`, returnData);
+    const response = await connection.post('/returns/process', returnData);
 
-      isReturnModalOpen.value = false;
-      await fetchOrders();
+    if (response.data.status === 'success') {
+      // Update the order's products with the remaining quantities
+      returningOrder.value.products = response.data.data.remaining_items;
+      returningOrder.value.total = response.data.data.new_total;
 
       Swal.fire({
-        title: 'Success!',
-        text: 'Items have been returned successfully.',
+        title: 'Return Processed',
+        text: `Successfully returned items. Amount refunded: Rs. ${response.data.data.returned_amount.toLocaleString()}`,
         icon: 'success',
         confirmButtonColor: '#3B82F6',
         background: '#1e293b',
-        color: '#ffffff',
+        color: '#ffffff'
       });
+
+      isReturnModalOpen.value = false;
+      await fetchOrders(); // Refresh the orders list
     }
   } catch (error) {
-    console.error('Error returning items:', error);
-
-    // Extract and display validation errors if available
-    let errorMessage = 'Failed to return items.';
-    if (error.response?.data?.errors) {
-      const validationErrors = Object.values(error.response.data.errors).flat();
-      errorMessage = validationErrors.join('\n');
-    } else if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    }
-
+    console.error('Return processing failed:', error);
     Swal.fire({
-      title: 'Error',
-      text: errorMessage,
+      title: 'Return Failed',
+      text: error.response?.data?.message || 'Failed to process return',
       icon: 'error',
       confirmButtonColor: '#3B82F6',
       background: '#1e293b',
-      color: '#ffffff',
+      color: '#ffffff'
     });
   } finally {
     isProcessingReturn.value = false;
