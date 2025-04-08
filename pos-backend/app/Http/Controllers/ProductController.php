@@ -253,6 +253,29 @@ class ProductController extends Controller
         }
     }
 
+    public function getInventory(): JsonResponse
+    {
+        try {
+            $inventory = Inventory::with(['product', 'location'])->get();
+
+            // Format inventory data if needed
+            $formattedInventory = $inventory->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'product_name' => $item->product->name ?? 'N/A',
+                    'quantity' => $item->quantity,
+                    'location' => $item->location->name ?? 'N/A',
+                    'updated_at' => $item->updated_at,
+                ];
+            });
+
+            return $this->successResponse('Inventory retrieved successfully', $formattedInventory);
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch inventory: ' . $e->getMessage());
+            return $this->errorResponse('Failed to fetch inventory', 500);
+        }
+    }
+
     // response functions
 
     private function successResponse(string $message, mixed $data = null, int $code = 200): JsonResponse
