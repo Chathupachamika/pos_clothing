@@ -25,20 +25,15 @@ import {
     ArrowLeftIcon,
     ArrowRightIcon,
     ClockIcon,
-
     ArchiveBoxIcon,
     ExclamationTriangleIcon,
     ChartBarIcon,
     ChartPieIcon
-
-    ArchiveBoxIcon
-
 } from '@heroicons/vue/24/outline'
 import Header from './Header.vue'
 import Sidebar from './Sidebar.vue'
 import Swal from 'sweetalert2'
 import GRNDocument from './GRNDocument.vue'
-
 // Import chart libraries
 import { Bar, Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js'
@@ -46,13 +41,11 @@ import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, Li
 // Register ChartJS components
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement)
 
-
 const isSidebarVisible = ref(false)
 const toggleSidebar = (visible) => {
     isSidebarVisible.value = visible
 }
 
-
 // Modal states
 const showModal = ref(false)
 const showEditModal = ref(false)
@@ -63,20 +56,6 @@ const grnProduct = ref(null)
 const grnNumber = ref('')
 const showStockUpdateModal = ref(false)
 const selectedProduct = ref(null)
-
-
-// Modal states
-const showModal = ref(false)
-const showEditModal = ref(false)
-const showDeleteModal = ref(false)
-const showViewModal = ref(false) 
-const showGRN = ref(false)
-const grnProduct = ref(null)
-const grnNumber = ref('')
-const showStockUpdateModal = ref(false)
-const selectedProduct = ref(null)
-
-
 
 // Table state
 const searchQuery = ref('')
@@ -87,7 +66,6 @@ const sortField = ref('id')
 const sortDirection = ref('asc')
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
-
 
 // Data
 const products = ref([])
@@ -725,400 +703,6 @@ const showErrorNotification = (message) => {
     })
 }
 
-
-
-// Data
-const products = ref([])
-const productVariations = ref([])
-const inventory = ref([])
-const isLoading = ref(true)
-const isUpdating = ref(false)
-const isDeleting = ref(false)
-
-
-const newStockUpdate = ref({
-    product_id: null,
-    quantity: 0,
-    restock_date_time: new Date().toISOString().slice(0, 16),
-    added_stock_amount: 0,
-    location: '',
-    status: 'In Stock'
-})
-
-// Fetch all products
-const fetchProducts = async () => {
-    try {
-        isLoading.value = true;
-        const response = await connection.get('/products');
-        products.value = response.data.data.map(product => ({
-            ...product,
-            location: product.location // Ensure location is included
-        }));
-    } catch (error) {
-        console.error('Error fetching products:', error)
-        showErrorNotification('Failed to load products')
-    } finally {
-        isLoading.value = false
-    }
-}
-
-// Fetch product variations
-const fetchProductVariations = async () => {
-    try {
-        isLoading.value = true
-        const response = await connection.get('/product/variations')
-        productVariations.value = response.data.data || []
-    } catch (error) {
-        console.error('Error fetching product variations:', error)
-        showErrorNotification('Failed to load product variations')
-    } finally {
-        isLoading.value = false
-    }
-}
-
-// Fetch inventory data
-const fetchInventory = async () => {
-    try {
-        isLoading.value = true;
-        const response = await connection.get('/inventory');
-        inventory.value = response.data.data || []; // Ensure data is properly handled
-    } catch (error) {
-        console.error('Error fetching inventory:', error);
-        if (error.response && error.response.data.message) {
-            console.error('Backend error message:', error.response.data.message);
-        }
-        showErrorNotification('Failed to load inventory data');
-    } finally {
-        isLoading.value = false;
-    }
-};
-
-// Fetch all data
-const fetchAllData = async () => {
-    await Promise.all([
-        fetchProducts(),
-        fetchProductVariations()
-    ])
-}
-
-// Computed properties
-const mergedData = computed(() => {
-    // Combine product and variation data
-    const result = []
-    
-    productVariations.value.forEach(variation => {
-        const product = products.value.find(p => p.id === variation.product_id)
-        if (product) {
-            result.push({
-                ...variation,
-                product_name: product.name,
-                category: product.category,
-                brand_name: product.brand_name,
-                description: product.description,
-                image_url: product.image_url,
-                location: product.location // Ensure location is included
-            })
-        }
-    })
-    
-    return result
-})
-
-const filteredData = computed(() => {
-    let result = mergedData.value
-    
-    // Apply search filter
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase()
-        result = result.filter(item => 
-            item.product_name?.toLowerCase().includes(query) ||
-            item.color?.toLowerCase().includes(query) ||
-            item.size?.toLowerCase().includes(query) ||
-            item.barcode?.toLowerCase().includes(query)
-        )
-    }
-    
-    // Apply category filter
-    if (categoryFilter.value) {
-        result = result.filter(item => item.category === categoryFilter.value)
-    }
-    
-    // Apply location filter
-    if (locationFilter.value) {
-        result = result.filter(item => item.location === locationFilter.value)
-    }
-    
-    // Apply status filter
-    if (statusFilter.value) {
-        result = result.filter(item => item.status === statusFilter.value)
-    }
-    
-    // Apply sorting
-    result = [...result].sort((a, b) => {
-        let fieldA, fieldB
-        
-        switch (sortField.value) {
-            case 'product_name':
-                fieldA = a.product_name || ''
-                fieldB = b.product_name || ''
-                break
-            case 'color':
-                fieldA = a.color || ''
-                fieldB = b.color || ''
-                break
-            case 'size':
-                fieldA = a.size || ''
-                fieldB = b.size || ''
-                break
-            case 'quantity':
-                fieldA = a.quantity || 0
-                fieldB = b.quantity || 0
-                break
-            case 'price':
-                fieldA = a.price || 0
-                fieldB = b.price || 0
-                break
-            case 'updated_at':
-                fieldA = new Date(a.updated_at || 0)
-                fieldB = new Date(b.updated_at || 0)
-                break
-            default:
-                fieldA = a[sortField.value]
-                fieldB = b[sortField.value]
-        }
-        
-        if (typeof fieldA === 'string' && typeof fieldB === 'string') {
-            return sortDirection.value === 'asc' 
-                ? fieldA.localeCompare(fieldB) 
-                : fieldB.localeCompare(fieldA)
-        } else {
-            return sortDirection.value === 'asc' 
-                ? fieldA - fieldB 
-                : fieldB - fieldA
-        }
-    })
-    
-    return result
-})
-
-const paginatedData = computed(() => {
-    const startIndex = (currentPage.value - 1) * itemsPerPage.value
-    const endIndex = startIndex + itemsPerPage.value
-    return filteredData.value.slice(startIndex, endIndex)
-})
-
-const totalPages = computed(() => {
-    return Math.ceil(filteredData.value.length / itemsPerPage.value)
-})
-
-const uniqueCategories = computed(() => {
-    const categories = new Set(products.value.map(p => p.category).filter(Boolean))
-    return ['All', ...Array.from(categories)]
-})
-
-const uniqueLocations = computed(() => {
-    const locations = new Set(inventory.value.map(i => i.location).filter(Boolean))
-    return ['All', ...Array.from(locations)]
-})
-
-const statusOptions = computed(() => {
-    return ['All', 'In Stock', 'Low Stock', 'Out Of Stock']
-})
-
-// Methods
-const toggleSort = (field) => {
-    if (sortField.value === field) {
-        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
-    } else {
-        sortField.value = field
-        sortDirection.value = 'asc'
-    }
-}
-
-const getSortIcon = (field) => {
-    if (sortField.value !== field) return null
-    return sortDirection.value === 'asc' ? ChevronUpIcon : ChevronDownIcon
-}
-
-const changePage = (page) => {
-    if (page >= 1 && page <= totalPages.value) {
-        currentPage.value = page
-    }
-}
-
-const resetFilters = () => {
-    searchQuery.value = ''
-    categoryFilter.value = ''
-    locationFilter.value = ''
-    statusFilter.value = ''
-    currentPage.value = 1
-}
-
-const formatDate = (dateString) => {
-    if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleString()
-}
-
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-    }).format(value)
-}
-
-const determineStatus = (quantity) => {
-    if (quantity === 0) {
-        return 'Out Of Stock'
-    } else if (quantity < 20) {
-        return 'Low Stock'
-    }
-    return 'In Stock'
-}
-
-// Stock update modal
-const openStockUpdateModal = (item) => {
-    selectedProduct.value = item
-    newStockUpdate.value = {
-        product_id: item.product_id,
-        quantity: 0,
-        restock_date_time: new Date().toISOString().slice(0, 16),
-        added_stock_amount: 0,
-        location: item.location || '',
-        status: item.status || 'In Stock'
-    }
-    showStockUpdateModal.value = true
-}
-
-const closeStockUpdateModal = () => {
-    showStockUpdateModal.value = false
-    selectedProduct.value = null
-}
-
-const handleStockUpdate = async () => {
-    if (!selectedProduct.value) return;
-
-    try {
-        isUpdating.value = true;
-
-        // Calculate new quantity
-        const newQuantity = Math.max(0, parseInt(selectedProduct.value.quantity) + parseInt(newStockUpdate.value.quantity));
-
-        // Prepare payload
-        const payload = {
-            quantity: newQuantity,
-            restock_date_time: newStockUpdate.value.restock_date_time,
-            added_stock_amount: newStockUpdate.value.quantity > 0 ? newStockUpdate.value.quantity : 0,
-            location: newStockUpdate.value.location,
-            status: determineStatus(newQuantity),
-            price: selectedProduct.value.price, // Ensure price is included
-            selling_price: selectedProduct.value.selling_price, // Ensure selling_price is included
-            color: selectedProduct.value.color, // Ensure color is included
-            size: selectedProduct.value.size, // Ensure size is included
-            barcode: selectedProduct.value.barcode, // Ensure barcode is included
-            discount: selectedProduct.value.discount || 0 // Ensure discount is included
-        };
-
-        // Update variation
-        const response = await connection.put(`/product/variations/${selectedProduct.value.id}`, payload);
-
-        if (response.data.status === 'success') {
-            // Update local data
-            await fetchProductVariations();
-
-            // Close modal
-            closeStockUpdateModal();
-
-            // Show success notification
-            Swal.fire({
-                position: "center",
-                icon: "success",
-                title: "Stock Updated Successfully!",
-                showConfirmButton: false,
-                timer: 1500,
-                background: '#1e293b',
-                color: '#ffffff'
-            });
-        }
-    } catch (error) {
-        console.error('Error updating stock:', error);
-        if (error.response && error.response.data.errors) {
-            console.error('Validation errors:', error.response.data.errors);
-        }
-        showErrorNotification('Failed to update stock');
-    } finally {
-        isUpdating.value = false;
-    }
-};
-
-// View modal
-const openViewModal = (item) => {
-    selectedProduct.value = item
-    showViewModal.value = true
-}
-
-// Delete modal
-const openDeleteModal = (item) => {
-    selectedProduct.value = item
-    
-    Swal.fire({
-        title: "Are you sure?",
-        text: `Do you want to delete this variation?`,
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#3085d6",
-        cancelButtonColor: "#d33",
-        confirmButtonText: "Yes, delete it!",
-        background: '#1e293b',
-        color: '#ffffff'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            handleDelete()
-        }
-    })
-}
-
-const handleDelete = async () => {
-    if (!selectedProduct.value) return
-    
-    try {
-        isDeleting.value = true
-        
-        // Delete variation
-        await connection.delete(`/product/variations/${selectedProduct.value.id}`)
-        
-        // Update local data
-        await fetchProductVariations()
-        
-        // Show success notification
-        Swal.fire({
-            position: "center",
-            icon: "success",
-            title: "Variation Deleted Successfully!",
-            showConfirmButton: false,
-            timer: 1500,
-            background: '#1e293b',
-            color: '#ffffff'
-        })
-    } catch (error) {
-        console.error('Error deleting variation:', error)
-        showErrorNotification('Failed to delete variation')
-    } finally {
-        isDeleting.value = false
-        selectedProduct.value = null
-    }
-}
-
-// Notifications
-const showErrorNotification = (message) => {
-    Swal.fire({
-        icon: "error",
-        title: "Error!",
-        text: message,
-        background: '#1e293b',
-        color: '#ffffff'
-    })
-}
-
 // Lifecycle hooks
 onMounted(() => {
     fetchAllData()
@@ -1228,8 +812,7 @@ onUnmounted(() => {
                     </div>
                 </div>
 
-
-
+                <!-- Extended Stats Cards -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <!-- Total Products Card -->
                     <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50 shadow-lg">
@@ -1237,7 +820,6 @@ onUnmounted(() => {
                             <div>
                                 <p class="text-gray-400 text-sm">Total Products</p>
                                 <h3 class="text-2xl font-bold text-white mt-1">{{ products.length }}</h3>
-
                                 <p class="text-green-400 text-xs mt-2 font-medium">
                                     <span class="flex items-center">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1248,10 +830,6 @@ onUnmounted(() => {
                                 </p>
                             </div>
                             <div class="bg-gradient-to-br from-blue-500/30 to-purple-500/30 p-3 rounded-lg">
-
-                            </div>
-                            <div class="bg-blue-500/20 p-2 rounded-lg">
-
                                 <CubeIcon class="w-6 h-6 text-blue-400" />
                             </div>
                         </div>
@@ -1263,7 +841,6 @@ onUnmounted(() => {
                             <div>
                                 <p class="text-gray-400 text-sm">Total Variations</p>
                                 <h3 class="text-2xl font-bold text-white mt-1">{{ productVariations.length }}</h3>
-
                                 <p class="text-green-400 text-xs mt-2 font-medium">
                                     <span class="flex items-center">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1274,10 +851,6 @@ onUnmounted(() => {
                                 </p>
                             </div>
                             <div class="bg-gradient-to-br from-purple-500/30 to-pink-500/30 p-3 rounded-lg">
-
-                            </div>
-                            <div class="bg-purple-500/20 p-2 rounded-lg">
-
                                 <TagIcon class="w-6 h-6 text-purple-400" />
                             </div>
                         </div>
@@ -1291,7 +864,6 @@ onUnmounted(() => {
                                 <h3 class="text-2xl font-bold text-white mt-1">
                                     {{ productVariations.filter(v => v.quantity < 20 && v.quantity > 0).length }}
                                 </h3>
-
                                 <p class="text-yellow-400 text-xs mt-2 font-medium">
                                     <span class="flex items-center">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1302,10 +874,6 @@ onUnmounted(() => {
                                 </p>
                             </div>
                             <div class="bg-gradient-to-br from-yellow-500/30 to-orange-500/30 p-3 rounded-lg">
-
-                            </div>
-                            <div class="bg-yellow-500/20 p-2 rounded-lg">
-
                                 <ExclamationTriangleIcon class="w-6 h-6 text-yellow-400" />
                             </div>
                         </div>
@@ -1319,7 +887,6 @@ onUnmounted(() => {
                                 <h3 class="text-2xl font-bold text-white mt-1">
                                     {{ productVariations.filter(v => v.quantity === 0).length }}
                                 </h3>
-
                                 <p class="text-red-400 text-xs mt-2 font-medium">
                                     <span class="flex items-center">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1330,16 +897,11 @@ onUnmounted(() => {
                                 </p>
                             </div>
                             <div class="bg-gradient-to-br from-red-500/30 to-rose-500/30 p-3 rounded-lg">
-
-                            </div>
-                            <div class="bg-red-500/20 p-2 rounded-lg">
-
                                 <ArchiveBoxIcon class="w-6 h-6 text-red-400" />
                             </div>
                         </div>
                     </div>
                 </div>
-
 
                 <!-- New Additional KPI Cards -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -1857,257 +1419,6 @@ onUnmounted(() => {
                         </div>
         </div>
 
-
-                <!-- Main Table -->
-                <div class="flex-1 bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50">
-                    <div class="h-full overflow-auto">
-                        <table class="w-full table-auto">
-                            <thead class="sticky top-0">
-                                <tr class="bg-gray-700/90 backdrop-blur-sm">
-                                    <th
-                                        @click="toggleSort('product_name')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Product Name</span>
-                                            <component :is="getSortIcon('product_name')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('variation')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Variation</span>
-                                            <component :is="getSortIcon('variation')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('color')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Color</span>
-                                            <component :is="getSortIcon('color')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('size')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Size</span>
-                                            <component :is="getSortIcon('size')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('quantity')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Quantity in Stock</span>
-                                            <component :is="getSortIcon('quantity')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th
-                                        @click="toggleSort('updated_at')"
-                                        class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-600/50 transition-colors"
-                                    >
-                                        <div class="flex items-center space-x-1">
-                                            <span>Updated Time</span>
-                                            <component :is="getSortIcon('updated_at')" class="w-4 h-4" />
-                                        </div>
-                                    </th>
-                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                        Stock Update
-                                    </th>
-                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-700/50">
-                                <tr v-if="isLoading" class="hover:bg-gray-700">
-                                    <td colspan="8" class="h-[400px] relative">
-                                        <div class="absolute inset-0 flex items-center justify-center">
-                                            <div class="flex flex-col items-center">
-                                                <div class="loader">
-                                                    <div class="loader-inner"></div>
-                                                </div>
-                                                <div class="mt-4 text-base font-medium text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse">
-                                                    Loading inventory...
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <template v-else>
-                                    <tr v-if="paginatedData.length === 0" class="hover:bg-gray-700">
-                                        <td colspan="8" class="px-6 py-8 text-center text-gray-400">
-                                            No inventory items available
-                                        </td>
-                                    </tr>
-                                    <template v-else v-for="item in paginatedData" :key="item.id">
-                                        <tr class="hover:bg-gray-700/30 transition-colors duration-200"
-                                            :class="{
-                                                'bg-red-900/20': item.quantity === 0,
-                                                'bg-yellow-900/10': item.quantity > 0 && item.quantity < 20
-                                            }">
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ item.product_name }}</td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span class="px-2 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                                    {{ item.id }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                                <div class="flex items-center">
-                                                    <div class="w-4 h-4 rounded-full mr-2" 
-                                                         :style="`background-color: ${item.color.toLowerCase()}`"></div>
-                                                    {{ item.color }}
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">{{ item.size }}</td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span :class="{
-                                                    'font-bold': true,
-                                                    'text-red-400': item.quantity === 0,
-                                                    'text-yellow-400': item.quantity > 0 && item.quantity < 20,
-                                                    'text-green-400': item.quantity >= 20
-                                                }">
-                                                    {{ item.quantity }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                                <div class="flex items-center">
-                                                    <ClockIcon class="w-4 h-4 mr-2 text-gray-400" />
-                                                    {{ formatDate(item.updated_at) }}
-                                                </div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                                <button 
-                                                    @click="openStockUpdateModal(item)"
-                                                    class="bg-emerald-500/20 p-1.5 rounded text-emerald-400 duration-200 hover:bg-emerald-500/30 transition-colors" 
-                                                    title="Update Stock"
-                                                >
-                                                    <ArrowPathIcon class="w-5 h-5" />
-                                                </button>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-center">
-                                                <div class="flex items-center justify-center space-x-2">
-                                                    <button 
-                                                        @click="openViewModal(item)"
-                                                        class="text-cyan-400 hover:text-cyan-300 p-1.5 hover:bg-gray-700 rounded-full transition-colors"
-                                                        title="View Details"
-                                                    >
-                                                        <EyeIcon class="w-5 h-5" />
-                                                    </button>
-                                                    <button 
-                                                        @click="openDeleteModal(item)"
-                                                        class="text-rose-500 hover:text-rose-400 p-1.5 hover:bg-gray-700 rounded-full transition-colors"
-                                                        title="Delete Variation"
-                                                    >
-                                                        <TrashIcon class="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </template>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                
-                <!-- Pagination -->
-                <div class="mt-4 text-sm text-gray-400 flex justify-between items-center">
-                    <div>
-                        Showing {{ Math.min(1 + (currentPage - 1) * itemsPerPage, filteredData.length) }}-{{ Math.min(currentPage * itemsPerPage, filteredData.length) }} of {{ filteredData.length }} items
-                    </div>
-                    <div class="flex space-x-2">
-                        <button 
-                            @click="changePage(currentPage - 1)" 
-                            :disabled="currentPage === 1"
-                            class="px-3 py-1 bg-gray-700 rounded-md hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 transition-colors"
-                        >
-                            Previous
-                        </button>
-                        <template v-if="totalPages <= 5">
-                            <button 
-                                v-for="page in totalPages" 
-                                :key="page"
-                                @click="changePage(page)"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition-colors',
-                                    currentPage === page 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                ]"
-                            >
-                                {{ page }}
-                            </button>
-                        </template>
-                        <template v-else>
-                            <!-- First page -->
-                            <button 
-                                @click="changePage(1)"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition-colors',
-                                    currentPage === 1 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                ]"
-                            >
-                                1
-                            </button>
-                            
-                            <!-- Ellipsis if needed -->
-                            <span v-if="currentPage > 3" class="px-3 py-1 text-gray-400">...</span>
-                            
-                            <!-- Pages around current -->
-                            <button 
-                                v-for="page in totalPages" 
-                                :key="page"
-                                v-if="page !== 1 && page !== totalPages && Math.abs(page - currentPage) <= 1"
-                                @click="changePage(page)"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition-colors',
-                                    currentPage === page 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                ]"
-                            >
-                                {{ page }}
-                            </button>
-                            
-                            <!-- Ellipsis if needed -->
-                            <span v-if="currentPage < totalPages - 2" class="px-3 py-1 text-gray-400">...</span>
-                            
-                            <!-- Last page -->
-                            <button 
-                                @click="changePage(totalPages)"
-                                :class="[
-                                    'px-3 py-1 rounded-md transition-colors',
-                                    currentPage === totalPages 
-                                        ? 'bg-blue-600 text-white' 
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                                ]"
-                            >
-                                {{ totalPages }}
-                            </button>
-                        </template>
-                        <button 
-                            @click="changePage(currentPage + 1)" 
-                            :disabled="currentPage === totalPages"
-                            class="px-3 py-1 bg-gray-700 rounded-md hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 transition-colors"
-                        >
-                            Next
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-
         <!-- Stock Update Modal -->
         <div v-if="showStockUpdateModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
             <div 
@@ -2463,7 +1774,6 @@ tbody tr:last-child td {
 @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
-
 }
 
 @keyframes slideIn {
@@ -2474,19 +1784,6 @@ tbody tr:last-child td {
 .animate-fadeIn {
     animation: fadeIn 0.3s ease-out;
 }
-
-
-}
-
-@keyframes slideIn {
-    from { transform: translateY(-20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-}
-
-.animate-fadeIn {
-    animation: fadeIn 0.3s ease-out;
-}
-
 
 .animate-slideIn {
     animation: slideIn 0.3s ease-out;
@@ -2509,7 +1806,6 @@ tbody tr:last-child td {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(107, 114, 128, 0.5);
-
 }
 
 .loader {
@@ -2522,21 +1818,6 @@ tbody tr:last-child td {
     box-sizing: border-box;
     animation: rotation 1s linear infinite;
 }
-
-
-}
-
-.loader {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #2563eb;
-    border-bottom-color: transparent;
-    border-radius: 50%;
-    display: inline-block;
-    box-sizing: border-box;
-    animation: rotation 1s linear infinite;
-}
-
 
 @keyframes rotation {
     0% {
