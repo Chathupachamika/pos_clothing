@@ -381,9 +381,8 @@ const totalInventoryValue = computed(() => {
 })
 
 const averageItemPrice = computed(() => {
-    if (productVariations.value.length === 0) return 0
-    const totalPrice = productVariations.value.reduce((sum, item) => sum + (item.price || 0), 0)
-    return totalPrice / productVariations.value.length
+    if (productVariations.value.length === 0) return 0;
+    return totalInventoryValue.value / productVariations.value.length;
 })
 
 // Computed properties
@@ -1251,21 +1250,10 @@ onUnmounted(() => {
                         
                         <!-- Top Products Chart -->
                         
-                        
+                       
                         
                     </div>
-                    <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50 p-4">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-medium text-gray-200">Top Products by Quantity</h3>
-                                <ChartBarIcon class="w-5 h-5 text-blue-400" />
-                            </div>
-                            <div class="h-64">
-                                <Bar 
-                                    :data="topProductsData"
-                                    :options="barChartOptions"
-                                />
-                            </div>
-                        </div>
+                    
                 </div>
                 
             </div>
@@ -1315,7 +1303,7 @@ onUnmounted(() => {
                                 </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-3 gap-4 mt-6">
+                        <div class="grid grid-cols-4 gap-4 mt-6">
                             <!-- Top Products Table -->
                             <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50">
                                 <h3 class="text-lg font-medium text-gray-200 mb-4 flex items-center">
@@ -1378,6 +1366,18 @@ onUnmounted(() => {
                                 </div>
                             </div>
 
+                            <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg overflow-hidden shadow-xl border border-gray-700/50 p-4">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-medium text-gray-200">Top Products by Quantity</h3>
+                                <ChartBarIcon class="w-5 h-5 text-blue-400" />
+                            </div>
+                            <div class="h-64">
+                                <Bar 
+                                    :data="topProductsData"
+                                    :options="barChartOptions"
+                                />
+                            </div>
+                        </div>
                             <!-- Weekly Activity Details Table -->
                             <div class="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50">
                                 <h3 class="text-lg font-medium text-gray-200 mb-4 flex items-center">
