@@ -7,11 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 class Product_Sales extends Model
 {
     protected $table = 'product_sales';
+
     protected $fillable = [
         'product_id',
         'sales_id',
         'quantity',
-        'price'
+        'price',
+        'returned_quantity'
+    ];
+
+    protected $casts = [
+        'price' => 'decimal:2',
+        'quantity' => 'integer',
+        'returned_quantity' => 'integer'
     ];
 
     public function product()
@@ -22,5 +30,10 @@ class Product_Sales extends Model
     public function sale()
     {
         return $this->belongsTo(Sales::class, 'sales_id');
+    }
+
+    public function getRemainingQuantityAttribute()
+    {
+        return $this->quantity - ($this->returned_quantity ?? 0);
     }
 }
