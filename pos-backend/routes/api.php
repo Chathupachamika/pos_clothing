@@ -22,6 +22,7 @@ use App\Http\Controllers\InvestmentController;
 use App\Http\Controllers\LoanController;
 use App\Http\Controllers\PlaceOrderController;
 use App\Http\Controllers\ProductVariationController;
+use App\Http\Controllers\DashboardController;
 
 // Cashier Routes
 Route::prefix('cashiers')->group(function () {
@@ -129,6 +130,7 @@ Route::prefix('api')->group(function () {
 
 // Return sales routes
 Route::post('/return/sales/{id}', [PlaceOrderController::class, 'return']);
+Route::get('/return/sales', [ReturnItemsController::class, 'index']);
 
 // Reports
 Route::get('/reports/sales', [PlaceOrderController::class, 'salesReports']);
@@ -204,3 +206,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/product/variations/{id}', [ProductVariationController::class, 'destroy']);
     Route::get('/product/variations/product/{id}', [ProductVariationController::class, 'showByProduct']);
 });
+
+// Dashboard Stats
+Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);

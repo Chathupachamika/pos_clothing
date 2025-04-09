@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\Product_Sales;
+use App\Models\ProductVariations;
 use App\Models\Promotion;
 use App\Models\ReturnItem;
 use App\Models\Sales;
@@ -20,7 +21,6 @@ class PlaceOrderController extends Controller
 {
     public function store(Request $request)
     {
-
         $request->validate([
             'time' => 'required|date',
             'status' => 'required|boolean',
@@ -32,22 +32,22 @@ class PlaceOrderController extends Controller
             'items.*.bar_code' => 'required|string',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
+            'items.*.variation_id' => 'required|exists:product_variations,id',
         ]);
 
         DB::beginTransaction();
         try {
-            // Convert 'time' to MySQL datetime format
+            // Format time
             $formattedTime = date('Y-m-d H:i:s', strtotime($request->time));
 
-            // Calculate total and apply discount
-            $total = 0;
-            foreach ($request->items as $item) {
-                $total += $item['price'] * $item['quantity'];
-            }
+            // Calculate total with discount
+            $total = collect($request->items)->sum(function($item) {
+                return $item['price'] * $item['quantity'];
+            });
             $discountAmount = ($total * $request->discount) / 100;
             $finalTotal = $total - $discountAmount;
 
-            // Create order record
+            // Create order
             $order = Order::create([
                 'time' => $formattedTime,
                 'status' => $request->status,
@@ -57,14 +57,51 @@ class PlaceOrderController extends Controller
                 'customer_id' => $request->customer_id,
             ]);
 
-            // Process each item in the order
+            $updatedVariations = [];
+            
+            // Process items and update stock
             foreach ($request->items as $item) {
+                // First verify if we have enough stock
+                $variation = ProductVariations::find($item['variation_id']);
+                if (!$variation) {
+                    throw new \Exception("Product variation not found: {$item['variation_id']}");
+                }
+
+                if ($variation->quantity < $item['quantity']) {
+                    throw new \Exception("Insufficient stock for product variation: {$variation->barcode}");
+                }
+
+                // Create order item
                 OrderItem::create([
                     'order_id' => $order->id,
                     'bar_code' => $item['bar_code'],
                     'quantity' => $item['quantity'],
                     'price' => $item['price'],
+                    'variation_id' => $item['variation_id'],
                 ]);
+
+                // Update variation stock
+                $newQuantity = $variation->quantity - $item['quantity'];
+                $variation->quantity = $newQuantity;
+
+                // Update status based on new quantity
+                if ($newQuantity === 0) {
+                    $variation->status = 'Out Of Stock';
+                } elseif ($newQuantity < 20) {
+                    $variation->status = 'Low Stock';
+                } else {
+                    $variation->status = 'In Stock';
+                }
+
+                $variation->save();
+                
+                // Add updated variation to response
+                $updatedVariations[] = [
+                    'id' => $variation->id,
+                    'barcode' => $variation->barcode,
+                    'quantity' => $variation->quantity,
+                    'status' => $variation->status
+                ];
             }
 
             DB::commit();
@@ -72,14 +109,15 @@ class PlaceOrderController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Order placed successfully',
-                'data' => $order
+                'data' => $order,
+                'updatedVariations' => $updatedVariations
             ], 201);
+
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to place order',
-                'error' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -159,21 +197,15 @@ class PlaceOrderController extends Controller
     {
         $request->validate([
             'items' => 'required|array|min:1',
-            'items.*.order_item_id' => 'required|exists:order_items,id',
+            'items.*.order_item_id' => 'required|integer|exists:order_items,id',
+            'items.*.variation_id' => 'nullable|integer|exists:product_variations,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.reason' => 'required|string|max:255',
         ]);
 
         DB::beginTransaction();
         try {
-            $order = Order::find($id);
-            if (!$order) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Order not found'
-                ], 404);
-            }
-
+            $order = Order::findOrFail($id);
             $returnedAt = now();
 
             foreach ($request->items as $item) {
@@ -186,9 +218,22 @@ class PlaceOrderController extends Controller
                     throw new \Exception("Return quantity exceeds the ordered quantity for Order Item ID: {$item['order_item_id']}");
                 }
 
+                // Use the variation_id from order_item if not provided in request
+                $variationId = $item['variation_id'] ?? $orderItem->variation_id;
+                if (!$variationId) {
+                    throw new \Exception("Variation ID not found for Order Item ID: {$item['order_item_id']}");
+                }
+
+                // Get the product variation
+                $variation = ProductVariations::find($variationId);
+                if (!$variation) {
+                    throw new \Exception("Product variation not found for ID: {$variationId}");
+                }
+
                 // Create return item record
                 $returnItem = ReturnItem::create([
                     'order_item_id' => $item['order_item_id'],
+                    'variation_id' => $variationId,
                     'quantity' => $item['quantity'],
                     'reason' => $item['reason'],
                 ]);
@@ -196,25 +241,22 @@ class PlaceOrderController extends Controller
                 // Create sales return item record
                 SalesReturnItem::create([
                     'order_id' => $order->id,
-                    'product_variation_id' => $orderItem->bar_code, // Assuming bar_code maps to product_variation_id
+                    'return_item_id' => $returnItem->id,
                     'returned_at' => $returnedAt,
                 ]);
 
-                // Update product quantity
-                $product = Product::where('bar_code', $orderItem->bar_code)->first();
-                if ($product) {
-                    $product->increment('quantity', $item['quantity']);
-
-                    // Update product status
-                    $status = 'In Stock';
-                    if ($product->quantity == 0) {
-                        $status = 'Out Of Stock';
-                    } elseif ($product->quantity < 20) {
-                        $status = 'Low Stock';
-                    }
-                    $product->status = $status;
-                    $product->save();
+                // Update variation quantity and status
+                $variation->increment('quantity', $item['quantity']);
+                
+                // Update variation status
+                $status = 'In Stock';
+                if ($variation->quantity == 0) {
+                    $status = 'Out Of Stock';
+                } elseif ($variation->quantity < 20) {
+                    $status = 'Low Stock';
                 }
+                $variation->status = $status;
+                $variation->save();
             }
 
             DB::commit();
@@ -234,7 +276,7 @@ class PlaceOrderController extends Controller
                 'status' => 'error',
                 'message' => 'Failed to process return',
                 'error' => $e->getMessage(),
-            ], 500);
+            ], 422);
         }
     }
 
@@ -495,7 +537,7 @@ class PlaceOrderController extends Controller
     public function index()
     {
         try {
-            $orders = Order::with(['customer', 'items'])->get(); // Ensure 'items' relationship is loaded
+            $orders = Order::with(['customer', 'items'])->get();
 
             $formattedOrders = $orders->map(function ($order) {
                 return [
@@ -514,10 +556,13 @@ class PlaceOrderController extends Controller
                     'payment_type' => $order->payment_type,
                     'items' => $order->items->map(function ($item) {
                         return [
+                            'id' => $item->id, // Add order_item_id
                             'bar_code' => $item->bar_code,
                             'quantity' => $item->quantity,
                             'price' => $item->price,
                             'total' => $item->quantity * $item->price,
+                            'variation_id' => $item->variation_id, // Add variation_id
+                            'name' => $item->product ? $item->product->name : 'Unknown Product',
                         ];
                     }),
                 ];

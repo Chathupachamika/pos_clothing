@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class ReturnItem extends Model
 {
-    protected $table = 'return_item';
+    protected $table = 'return_items';
 
     protected $fillable = [
+        'order_item_id',
+        'variation_id',
         'reason',
         'quantity',
         'product_id',

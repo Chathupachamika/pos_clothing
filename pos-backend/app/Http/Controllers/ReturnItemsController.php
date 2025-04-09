@@ -10,7 +10,6 @@ class ReturnItemsController extends Controller
 {
     public function index()
     {
-        // Fetch all return items with related sales return data
         $returnItems = ReturnItem::with(['salesReturnItem'])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -19,14 +18,14 @@ class ReturnItemsController extends Controller
                     'id' => $item->id,
                     'reason' => $item->reason,
                     'quantity' => $item->quantity,
-                    'product_id' => $item->product_id,
+                    'product_id' => $item->order_item_id,
+                    'product_variation_id' => $item->variation_id,
                     'created_at' => $item->created_at,
                     'updated_at' => $item->updated_at,
-                    'sales_id' => $item->salesReturnItem ? $item->salesReturnItem->sales_id : null,
+                    'sales_id' => $item->salesReturnItem ? $item->salesReturnItem->order_id : null,
                     'returned_at' => $item->salesReturnItem ? $item->salesReturnItem->returned_at : null
                 ];
             });
-
         return response()->json([
             'status' => 'success',
             'data' => $returnItems

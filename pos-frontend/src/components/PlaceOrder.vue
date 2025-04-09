@@ -333,7 +333,8 @@ const addToOrder = (variation) => {
         size: variation.size,
         price: variation.sellingPrice,
         quantity: 1,
-        initialStock: variation.quantity
+        initialStock: variation.quantity,
+        variation_id: variation.id  // Add this line to include variation_id
       });
     } else {
       Swal.fire({
@@ -453,6 +454,22 @@ const updateProductStock = (productId, quantity) => {
 
 const orderNumber = ref('')
 
+const updateLocalProductData = (updatedVariations) => {
+  updatedVariations.forEach(variation => {
+    const product = products.value.find(p => 
+      p.variations.some(v => v.id === variation.id)
+    );
+    
+    if (product) {
+      const variationToUpdate = product.variations.find(v => v.id === variation.id);
+      if (variationToUpdate) {
+        variationToUpdate.quantity = variation.quantity;
+        variationToUpdate.status = variation.status;
+      }
+    }
+  });
+}
+
 const completeOrder = async () => {
   try {
     isProcessingOrder.value = true;
@@ -472,19 +489,21 @@ const completeOrder = async () => {
       items: orderItems.value.map(item => ({
         bar_code: item.barcode,
         quantity: item.quantity,
-        price: item.price
+        price: item.price,
+        variation_id: item.variation_id  // Add this line to include variation_id
       }))
     };
 
     const response = await connection.post('api/sales', salesData);
 
     if (response.status === 201) {
+      // Update local product data with new quantities
+      if (response.data.updatedVariations) {
+        updateLocalProductData(response.data.updatedVariations);
+      }
+
       invoiceNumber.value = response.data.data.id.toString().padStart(4, '0');
       orderNumber.value = response.data.data.id.toString().padStart(4, '0');
-
-      orderItems.value.forEach(item => {
-        updateProductStock(item.barcode, item.quantity);
-      });
 
       isPaymentModalOpen.value = false;
 

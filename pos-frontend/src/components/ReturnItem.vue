@@ -67,9 +67,14 @@ const dateRanges = [
 const fetchReturnItems = async () => {
   isLoading.value = true
   try {
-    const response = await returnItemApi.getAll()
+    const response = await connection.get('/return/sales')
     if (response.data.status === 'success') {
-      returnItems.value = response.data.data
+      returnItems.value = response.data.data.map(item => ({
+        ...item,
+        date: new Date(item.created_at).toISOString(),
+        formatted_date: formatDate(item.created_at),
+        formatted_time: formatTime(item.created_at)
+      }))
     }
   } catch (error) {
     console.error('Error fetching return items:', error)
@@ -97,10 +102,10 @@ const filteredReturnItems = computed(() => {
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(item =>
-      item.id.toString().toLowerCase().includes(query) ||
-      item.reason.toLowerCase().includes(query) ||
-      item.product_id.toString().toLowerCase().includes(query) ||
-      (item.sales_id && item.sales_id.toString().toLowerCase().includes(query))
+      item.id?.toString().toLowerCase().includes(query) ||
+      item.reason?.toLowerCase().includes(query) ||
+      item.product_id?.toString().toLowerCase().includes(query) ||
+      item.sales_id?.toString().toLowerCase().includes(query)
     )
   }
 
@@ -147,20 +152,20 @@ const filteredReturnItems = computed(() => {
 
     switch (sortField.value) {
       case 'id':
-        return sortDirection.value === 'asc' 
-          ? parseInt(a.id) - parseInt(b.id)
-          : parseInt(b.id) - parseInt(a.id)
+        valueA = parseInt(a.id) || 0
+        valueB = parseInt(b.id) || 0
+        break
       case 'date':
-        valueA = new Date(a.created_at)
-        valueB = new Date(b.created_at)
+        valueA = new Date(a.created_at || 0)
+        valueB = new Date(b.created_at || 0)
         break
       case 'quantity':
-        valueA = a.quantity
-        valueB = b.quantity
+        valueA = parseInt(a.quantity) || 0
+        valueB = parseInt(b.quantity) || 0
         break
       case 'product_id':
-        valueA = a.product_id
-        valueB = b.product_id
+        valueA = parseInt(a.product_id) || 0
+        valueB = parseInt(b.product_id) || 0
         break
       default:
         valueA = a[sortField.value]
@@ -615,30 +620,30 @@ const formatTime = (dateString) => {
                       class="rounded border-gray-600 text-[#3b82f6] focus:ring-[#3b82f6]/30 bg-gray-700 w-4 h-4"
                       :aria-label="`Select return item ${item.id}`" />
                   </td>
-                  <td class="py-4 px-4 font-medium text-[#4dabf7]">{{ item.id }}</td>
+                  <td class="py-4 px-4 font-medium text-[#4dabf7]">#{{ item.id || 'N/A' }}</td>
                   <td class="py-4 px-4">
                     <div class="flex items-center gap-2">
                       <div class="w-8 h-8 rounded-full flex items-center justify-center bg-[#3b82f6]/20 text-[#3b82f6]">
                         <Package class="w-4 h-4" />
                       </div>
-                      <span>{{ item.product_id }}</span>
+                      <span>{{ item.product_id || 'N/A' }}</span>
                     </div>
                   </td>
                   <td class="py-4 px-4">
                     <div class="max-w-[200px] truncate" :title="item.reason">
-                      {{ item.reason }}
+                      {{ item.reason || 'No reason provided' }}
                     </div>
                   </td>
-                  <td class="py-4 px-4 font-medium">{{ item.quantity }}</td>
+                  <td class="py-4 px-4 font-medium">{{ item.quantity || 0 }}</td>
                   <td class="py-4 px-4">
                     <div class="flex flex-col">
-                      <span>{{ formatDate(item.created_at) }}</span>
-                      <span class="text-xs text-gray-400 mt-1">{{ formatTime(item.created_at) }}</span>
+                      <span>{{ item.formatted_date || 'N/A' }}</span>
+                      <span class="text-xs text-gray-400 mt-1">{{ item.formatted_time || 'N/A' }}</span>
                     </div>
                   </td>
                   <td class="py-4 px-4">
                     <div v-if="item.sales_id" class="text-[#3b82f6] font-medium">
-                      {{ item.sales_id }}
+                      #{{ item.sales_id }}
                     </div>
                     <div v-else class="text-gray-400">N/A</div>
                   </td>

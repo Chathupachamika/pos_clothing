@@ -114,7 +114,7 @@ const isLoading = ref(false)
 const fetchOrders = async () => {
   isLoading.value = true;
   try {
-    const response = await connection.get('/api/sales'); // Ensure the correct endpoint is used
+    const response = await connection.get('/api/sales');
     console.log('API Response:', response.data);
     const sortedData = response.data.map(order => ({
       id: order.id,
@@ -131,11 +131,13 @@ const fetchOrders = async () => {
       status: order.status ? 'completed' : 'pending',
       payment: order.payment_type,
       products: order.items ? order.items.map(item => ({
-        id: item.bar_code,
+        id: item.id, // Add this line to store the order_item_id
+        bar_code: item.bar_code,
         name: item.name || 'Unknown Product',
         quantity: item.quantity,
         price: item.price,
         total: item.price * item.quantity,
+        variation_id: item.variation_id, // Add this line to store the variation_id
       })) : [],
       discount: order.discount || 0,
       subtotal: order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0,
@@ -989,12 +991,14 @@ const openUpdateModal = (order) => {
 const openReturnModal = (order) => {
   returningOrder.value = order;
   selectedItems.value = order.products.map(p => ({
-    order_item_id: p.id, // Ensure this matches the backend's `order_item_id` field
-    name: p.name,
-    max_quantity: p.quantity,
+    order_item_id: parseInt(p.id) || null,  // Convert to integer
+    variation_id: parseInt(p.variation_id) || null, // Convert to integer
+    name: p.name || '',
+    max_quantity: p.quantity || 0,
     quantity: 0,
     reason: ''
   }));
+  console.log('Selected Items:', selectedItems.value); // Add this for debugging
   isReturnModalOpen.value = true;
 }
 
@@ -1020,6 +1024,13 @@ const validateReturnQuantity = (item) => {
       severity: 'error'
     }
   }
+  if (!item.reason) {
+    return {
+      valid: false,
+      message: 'Return reason is required',
+      severity: 'error'
+    }
+  }
   return { 
     valid: true,
     message: `${item.quantity} of ${item.max_quantity} items selected`,
@@ -1029,12 +1040,14 @@ const validateReturnQuantity = (item) => {
 
 const submitReturn = async () => {
   try {
-    const itemsToReturn = selectedItems.value.filter(item => item.quantity > 0);
+    const itemsToReturn = selectedItems.value.filter(item => 
+      item.quantity > 0 && item.reason && validateReturnQuantity(item).valid
+    );
 
     if (itemsToReturn.length === 0) {
       Swal.fire({
-        title: 'No Items Selected',
-        text: 'Please select at least one item to return.',
+        title: 'Invalid Return',
+        text: 'Please select items to return and provide reasons',
         icon: 'warning',
         confirmButtonColor: '#3B82F6',
         background: '#1e293b',
@@ -1043,55 +1056,53 @@ const submitReturn = async () => {
       return;
     }
 
-    console.log('Returning Items:', itemsToReturn); // Log the details of the items being returned
+    const returnData = {
+      items: itemsToReturn.map(item => {
+        if (!item.order_item_id || !item.variation_id) {
+          throw new Error('Missing required item data');
+        }
+        return {
+          order_item_id: parseInt(item.order_item_id),
+          variation_id: parseInt(item.variation_id),
+          quantity: parseInt(item.quantity),
+          reason: String(item.reason).trim(),
+        };
+      })
+    };
 
-    const result = await Swal.fire({
-      title: 'Confirm Return',
-      text: 'Are you sure you want to return these items?',
-      icon: 'question',
-      showCancelButton: true,
+    // Debug log
+    console.log('Return data:', returnData);
+
+    // Validate data before sending
+    if (returnData.items.some(item => 
+      isNaN(item.order_item_id) || 
+      isNaN(item.variation_id) || 
+      !item.reason
+    )) {
+      throw new Error('Invalid item data');
+    }
+
+    const response = await connection.post(`/api/return/sales/${returningOrder.value.id}`, returnData);
+
+    isReturnModalOpen.value = false;
+    await fetchOrders();
+
+    Swal.fire({
+      title: 'Success!',
+      text: 'Items have been returned successfully.',
+      icon: 'success',
       confirmButtonColor: '#3B82F6',
-      cancelButtonColor: '#6B7280',
-      confirmButtonText: 'Yes, return items',
       background: '#1e293b',
       color: '#ffffff',
     });
-
-    if (result.isConfirmed) {
-      isProcessingReturn.value = true;
-
-      // Ensure the payload matches the backend's expectations
-      const returnData = {
-        items: itemsToReturn.map(item => ({
-          order_item_id: item.order_item_id, // Correctly map to order_item_id
-          quantity: item.quantity,
-          reason: item.reason,
-        })),
-      };
-
-      // Send the request to the backend
-      await connection.post(`/return/sales/${returningOrder.value.id}`, returnData);
-
-      isReturnModalOpen.value = false;
-      await fetchOrders();
-
-      Swal.fire({
-        title: 'Success!',
-        text: 'Items have been returned successfully.',
-        icon: 'success',
-        confirmButtonColor: '#3B82F6',
-        background: '#1e293b',
-        color: '#ffffff',
-      });
-    }
   } catch (error) {
     console.error('Error returning items:', error);
-
-    // Extract and display validation errors if available
     let errorMessage = 'Failed to return items.';
-    if (error.response?.data?.errors) {
-      const validationErrors = Object.values(error.response.data.errors).flat();
-      errorMessage = validationErrors.join('\n');
+    
+    if (error.message === 'Invalid item data' || error.message === 'Missing required item data') {
+      errorMessage = 'Invalid return data. Please check the items and try again.';
+    } else if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
     } else if (error.response?.data?.message) {
       errorMessage = error.response.data.message;
     }

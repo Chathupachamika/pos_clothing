@@ -19,19 +19,18 @@ class CreateSalesReturnItemsTable extends Migration
             $table->integer('quantity');
             $table->string('reason');
             $table->timestamps();
-
             $table->foreign('order_item_id')->references('id')->on('order_items')->onDelete('cascade');
         });
 
         Schema::create('sales_return_items', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('order_id');
-            $table->string('barcode');
+            $table->unsignedBigInteger('return_item_id');
             $table->timestamp('returned_at');
             $table->timestamps();
 
             $table->foreign('order_id')->references('id')->on('orders')->onDelete('cascade');
-            $table->foreign('barcode')->references('barcode')->on('product_variations')->onDelete('cascade');
+            $table->foreign('return_item_id')->references('id')->on('return_items')->onDelete('cascade');
         });
     }
 
