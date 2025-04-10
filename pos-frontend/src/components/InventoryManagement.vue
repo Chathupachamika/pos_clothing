@@ -46,7 +46,7 @@ const toggleSidebar = (visible) => {
     isSidebarVisible.value = visible
 }
 
-// Modal states
+
 const showModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteModal = ref(false)
