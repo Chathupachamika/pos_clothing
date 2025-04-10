@@ -34,7 +34,7 @@ import Header from './Header.vue'
 import Sidebar from './Sidebar.vue'
 import Swal from 'sweetalert2'
 import GRNDocument from './GRNDocument.vue'
-// Import chart libraries
+
 import { Bar, Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement } from 'chart.js'
 
