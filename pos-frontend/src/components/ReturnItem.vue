@@ -54,7 +54,6 @@ const showSidebar = () => {
 
 const customStartDate = ref('')
 const customEndDate = ref('')
-
 const dateRanges = [
   { id: 'all', label: 'All Time' },
   { id: 'today', label: 'Today' },
