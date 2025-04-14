@@ -23,7 +23,6 @@ import html2pdf from 'html2pdf.js'
 import Header from './Header.vue'
 import Sidebar from './Sidebar.vue'
 import SidebarCashier from './Sidebar-cashier.vue'
-
 const returnItems = ref([])
 const isLoading = ref(false)
 const searchQuery = ref('')
