@@ -75,7 +75,6 @@ onMounted(() => {
 
 const isAddingEmployee = ref(false)
 const isUpdatingEmployee = ref(false)
-
 const handleAddEmployee = async () => {
     if (!validateForm(newEmployee.value)) return
     isAddingEmployee.value = true
