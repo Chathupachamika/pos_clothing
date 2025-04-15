@@ -27,7 +27,6 @@ const showSidebar = () => {
 const closeSidebar = () => {
     isSidebarVisible.value = false
 }
-
 const toggleSidebar = () => {
     isSidebarVisible.value = !isSidebarVisible.value
 }
