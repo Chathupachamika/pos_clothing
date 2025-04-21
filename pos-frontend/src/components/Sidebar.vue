@@ -34,7 +34,7 @@ const menuSections = [
     icon: ShoppingBagIcon,
     items: [
       { name: 'Products', icon: ShoppingCartIcon, route: '/products' },
-      { name: 'Inventory Management', icon: ArchiveBoxIcon, route: '/inventory-management' },
+     
     ]
   },
   {

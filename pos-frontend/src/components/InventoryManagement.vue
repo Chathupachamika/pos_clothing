@@ -703,6 +703,11 @@ const showErrorNotification = (message) => {
     })
 }
 
+const userName = computed(() => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return user.name || 'User';
+});
+
 // Lifecycle hooks
 onMounted(() => {
     fetchAllData()
@@ -719,14 +724,24 @@ onUnmounted(() => {
         <Sidebar :isVisible="isSidebarVisible" @closeSidebar="toggleSidebar(false)" />
         <div class="fixed top-0 left-0 w-8 h-full z-50" @mouseenter="toggleSidebar(true)"></div>
         <div class="ml-0 pt-20"> 
+            <Header @toggleSidebar="toggleSidebar" />
+      
             <div class="w-full h-full flex flex-col p-4 md:p-6">
+                <div
+        class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-4"
+      >
+        <div>
+          <h1
+            class="text-2xl lg:text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-teal-400 bg-clip-text text-transparent"
+          >
+            Welcome Back, {{ userName }}!
+          </h1>
+          <p class="text-gray-400 text-sm">Last login: Today at 15:32</p>
+        </div>
+      </div>
                 <!-- Header Section -->
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-                    <div class="flex items-center space-x-4">
-                        <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                            Inventory Management
-                        </h1>
-                    </div>
+                    
                     <div class="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
                         <div class="relative w-full md:w-80">
                             <input 

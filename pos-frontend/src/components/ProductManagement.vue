@@ -2080,27 +2080,6 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <div class="bg-gray-800/50 backdrop-blur-sm p-4 rounded-lg border border-gray-700/30 space-y-4">
-                        <h3 class="text-sm font-medium text-gray-300 uppercase">Pricing Details</h3>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <span class="text-sm font-medium text-cyan-400">Price</span>
-                                <p class="text-white mt-1">${{ Number(viewingProduct.price).toFixed(2) }}</p>
-                            </div>
-                            <div>
-                                <span class="text-sm font-medium text-cyan-400">Seller Price</span>
-                                <p class="text-white mt-1">${{ Number(viewingProduct.seller_price).toFixed(2) }}</p>
-                            </div>
-                            <div>
-                                <span class="text-sm font-medium text-cyan-400">Profit</span>
-                                <p class="text-white mt-1">${{ Number(viewingProduct.profit).toFixed(2) }}</p>
-                            </div>
-                            <div>
-                                <span class="text-sm font-medium text-cyan-400">Discount</span>
-                                <p class="text-white mt-1">{{ Number(viewingProduct.discount).toFixed(2) }}%</p>
-                            </div>
-                        </div>
-                    </div>
 
                     <div class="bg-gray-800/50 backdrop-blur-sm p-4 rounded-lg border border-gray-700/30 space-y-4">
                         <h3 class="text-sm font-medium text-gray-300 uppercase">Product Details</h3>
@@ -2127,27 +2106,7 @@ onUnmounted(() => {
                     <div class="bg-gray-800/50 backdrop-blur-sm p-4 rounded-lg border border-gray-700/30 space-y-4">
                         <h3 class="text-sm font-medium text-gray-300 uppercase">Stock Information</h3>
                         <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <span class="text-sm font-medium text-cyan-400">Quantity</span>
-                                <p class="text-white mt-1">{{ viewingProduct.quantity }}</p>
-                            </div>
-                            <div>
-                                <span class="text-sm font-medium text-cyan-400">Added Stock Amount</span>
-                                <p class="text-white mt-1">{{ viewingProduct.added_stock_amount }}</p>
-                            </div>
-                            <div>
-                                <span class="text-sm font-medium text-cyan-400">Status</span>
-                                <p class="text-white mt-1">
-                                    <span :class="{
-                                        'px-2 py-1 text-xs rounded-full': true,
-                                        'bg-green-500/20 text-green-300 border border-green-500/30': viewingProduct.status === 'In Stock',
-                                        'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30': viewingProduct.status === 'Low Stock',
-                                        'bg-red-500/20 text-red-300 border border-red-500/30': viewingProduct.status === 'Out of Stock'
-                                    }">
-                                        {{ viewingProduct.status }}
-                                    </span>
-                                </p>
-                            </div>
+                            
                             <div>
                                 <span class="text-sm font-medium text-cyan-400">Location</span>
                                 <p class="text-white mt-1">{{ viewingProduct.location || 'N/A' }}</p>
